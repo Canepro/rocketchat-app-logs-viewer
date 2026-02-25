@@ -1,0 +1,18 @@
+{
+    "id": "5e4dbe96-2384-4865-ae52-f44f4db2f4d0",
+    "name": "Logs Viewer",
+    "nameSlug": "logs-viewer",
+    "version": "0.1.0",
+    "requiredApiVersion": "^1.59.1",
+    "description": "Rocket.Chat-native log and diagnostics workflow app scaffold.",
+    "author": {
+        "name": "Logs Viewer Team",
+        "homepage": "https://github.com/canepro/rocketchat-app-logs-viewer",
+        "support": "https://github.com/canepro"
+    },
+    "classFile": "main.ts",
+    "iconFile": "icon.png",
+    "implements": [
+        "IUIKitInteractionHandler"
+    ]
+}

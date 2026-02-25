@@ -1,0 +1,9 @@
+{
+  "ignoredFiles": [
+    "web/**",
+    "tests/**",
+    "docs/**",
+    "DESIGN.md",
+    "CHANGELOG.md"
+  ]
+}

@@ -1,0 +1,11 @@
+node_modules
+dist
+*.zip
+resources/web
+web/node_modules
+*.log
+*.tsbuildinfo
+web/vite.config.js
+web/vite.config.d.ts
+web/tailwind.config.js
+web/tailwind.config.d.ts
