@@ -169,10 +169,10 @@ As of 2026-02-26:
     - Viewer-entry UX policy formalized: `/logs` remains non-blocking and context-first; Loki readiness is validated at backend query time with explicit user-facing errors
     - In-chat `/logs` hardening baseline:
       - private contextual-bar summary with timestamped sample lines
-      - in-chat action buttons (`Copy sample`, `Share sample`)
+      - in-chat action buttons (`Show copy-ready sample`, `Share sample`, `Share elsewhere`)
       - share-from-slash audit path
       - interaction reliability hardening via server-side user/room resolution
-      - sample sizing policy: preview up to 25, copy/share chat output up to 60
+      - sample sizing policy: preview up to 25, copy/share chat output up to 40
       - per-user snapshot-backed slash actions to avoid oversized button payload failures
       - numbered code-block sample rendering for faster in-chat triage
       - numeric severity fallback mapping for common JSON numeric levels
@@ -187,15 +187,19 @@ As of 2026-02-26:
   - Remaining:
     - Optional stream-mode design spike (SSE/WebSocket) with security and rate-control review before any server-push implementation
     - Export workflow backlog (`/export`) after stream-vs-polling direction is finalized
-- Phase 3 started:
+- Phase 3 in progress:
   - Completed:
     - Operator runbook baseline (`docs/RUNBOOK.md`) covering install, validation, rollback, troubleshooting, and escalation data.
     - Marketplace submission checklist baseline (`docs/MARKETPLACE_CHECKLIST.md`) covering packaging, security, QA, docs, and signoff gates.
     - Release governance workflow baseline (`docs/RELEASE_WORKFLOW.md`) with semantic versioning policy, verification gates, and release evidence requirements.
-    - Root changelog baseline (`CHANGELOG.md`) with unreleased tracking and initial `0.1.0` entry.
+    - Root changelog tracking now includes stable `0.1.1` cut (`CHANGELOG.md`).
     - Packaging pipeline hardening for monorepo layout (`--experimental-native-compiler` + `.rcappsconfig` ignore policy + devDependency alignment for `@rocket.chat/apps-engine`)
+    - Stable release governance artifacts:
+      - app version `0.1.1` in `app.json`
+      - packaged artifact `dist/logs-viewer_0.1.1.zip`
+      - tags `v0.1.1-pre` (historical) and `v0.1.1` (stable)
   - Remaining:
-    - Final marketplace submission packet assembly and dry-run review.
+    - Final marketplace submission packet signoff and submission handoff.
 
 ## 7. Field learnings snapshot (2026-02-26)
 
@@ -210,7 +214,7 @@ As of 2026-02-26:
   - prioritize in-chat triage workflow depth first, then web deep-inspection UX improvements.
 - In-chat signal-vs-noise sizing decision:
   - keep contextual-bar scan speed high with a 25-line preview
-  - allow richer incident evidence handoff with 60-line copy/share output
+  - allow richer incident evidence handoff with 40-line copy/share output
   - keep button payload compact with snapshot references instead of inline large sample payloads
 - These findings are now explicitly reflected in:
   - `docs/RUNBOOK.md` (operational checks and selector diagnosis)

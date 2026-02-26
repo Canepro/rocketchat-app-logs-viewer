@@ -94,7 +94,7 @@ Slash response visibility behavior:
 - The command does not post a room-visible message in channel/group/team contexts.
 - The private response includes a quick triage summary (source mode, window, sampled line count, top levels, top signals, and bounded timestamped sample output lines).
 - Sidebar preview shows up to 25 sampled lines (truncated for scan speed), and may be further reduced by a chat-size safety cap.
-- `Copy sample` and `Share sample` render up to 40 sampled lines in chat using full-line-priority mode (fewer lines, richer line text).
+- `Show copy-ready sample` and `Share sample` render up to 40 sampled lines in chat using full-line-priority mode (fewer lines, richer line text).
 - Slash-card actions are snapshot-backed (persisted per user) to avoid large button payload failures.
 - In `app_logs` source mode, quick sample output is intentionally unavailable in slash response; use Open Logs Viewer for full query.
 - In-chat-first actions are available directly in the private slash card:
@@ -116,7 +116,7 @@ New workspace quickstart (operator + first user):
 4. Validate private in-chat behavior:
    - you should see a private contextual bar response
    - preview should show up to 25 sampled lines
-   - `Copy sample` (private) and `Share sample` (room/thread) should work
+   - `Show copy-ready sample` (private) and `Share sample` (room/thread) should work
 5. Use **Open Logs Viewer** for deeper inspection, saved views, and row actions.
 
 The private workflow includes a one-click "Open Logs Viewer" deep link with:
@@ -147,9 +147,11 @@ Packaging/deploy notes:
 
 - `bun run package` and `bun run deploy` use `rc-apps` native compiler mode (`--experimental-native-compiler`).
 - `.rcappsconfig` excludes non-app workspace paths (`web/**`, `tests/**`, docs) from the packaged artifact.
+- GitHub CI (`.github/workflows/ci.yml`) runs `test`, `typecheck`, `build`, and `package` on pushes/PRs.
 
 For implementation details and next steps, see:
 
+- **[docs/README.md](./docs/README.md)** — docs index (core guides vs release records).
 - **[docs/IMPLEMENTATION.md](./docs/IMPLEMENTATION.md)** — code map, endpoint behavior, and implementation sequence.
 - **[docs/API_CONTRACT.md](./docs/API_CONTRACT.md)** — app API request/response contract and auth model.
 - **[docs/USER_GUIDE.md](./docs/USER_GUIDE.md)** — operator/end-user usage, command reference, and troubleshooting.
@@ -159,12 +161,9 @@ For implementation details and next steps, see:
 - **[docs/RELEASE_WORKFLOW.md](./docs/RELEASE_WORKFLOW.md)** — versioning, changelog, package validation, and release evidence workflow.
 - **[docs/VERSION_TRACKER.md](./docs/VERSION_TRACKER.md)** — release version baseline, feature-to-version mapping, and next-version recommendation.
 - **[docs/GITHUB_PUSH_PLAN.md](./docs/GITHUB_PUSH_PLAN.md)** — branch/commit/PR/tag checklist for clean repository publishing.
-- **[docs/SMOKE_CHECKLIST_4PM.md](./docs/SMOKE_CHECKLIST_4PM.md)** — live post-start validation run-sheet for cluster smoke.
-- **[docs/RELEASE_NOTES_v0.1.1_DRAFT.md](./docs/RELEASE_NOTES_v0.1.1_DRAFT.md)** — draft release notes and acceptance criteria for next cut.
-- **[docs/PR_DESCRIPTION_v0.1.1_DRAFT.md](./docs/PR_DESCRIPTION_v0.1.1_DRAFT.md)** — prepared PR body template for review/submission.
+- **[docs/SMOKE_CHECKLIST.md](./docs/SMOKE_CHECKLIST.md)** — reusable live validation run-sheet and evidence record.
 - **[CHANGELOG.md](./CHANGELOG.md)** — release history and unreleased change tracking.
 - **[docs/RBAC_REVIEW.md](./docs/RBAC_REVIEW.md)** — permission-mode hardening review and failure-mode matrix.
 - **[docs/EXECUTION_PLAN.md](./docs/EXECUTION_PLAN.md)** — enterprise delivery phases, quality gates, and definition-of-done.
 - **[docs/DRIFT_REGISTER.md](./docs/DRIFT_REGISTER.md)** — tracked design/implementation drift and resolution status.
-- **[docs/HANDOFF.md](./docs/HANDOFF.md)** — concise current status and next-step handoff for continuation.
 - **[docs/COMMUNITY_INTELLIGENCE.md](./docs/COMMUNITY_INTELLIGENCE.md)** — tracked official/community signals, references, and review cadence.

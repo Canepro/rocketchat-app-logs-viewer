@@ -26,7 +26,7 @@ Non-endpoint behavior note:
 - `/logs` slash command uses private response surfaces (contextual bar primary, user notification fallback).
 - Slash triage sample sizing policy:
   - in-chat sidebar preview up to `25` lines
-  - copy/share chat output up to `60` lines
+  - copy/share chat output up to `40` lines
   - slash-card button values carry compact snapshot references (sample lines are resolved from per-user persisted snapshots)
 
 Compatibility note:

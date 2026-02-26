@@ -25,8 +25,9 @@ Required references before cutting a release:
 5. `CHANGELOG.md`
 6. `docs/VERSION_TRACKER.md`
 7. `docs/GITHUB_PUSH_PLAN.md`
-8. `docs/RELEASE_NOTES_v0.1.1_DRAFT.md` (or version-matched release notes draft)
-9. `docs/SMOKE_CHECKLIST_4PM.md` (or version-matched smoke run sheet)
+8. `docs/SMOKE_CHECKLIST.md` (version-matched smoke run sheet entries)
+9. `CHANGELOG.md` version section for release notes
+10. GitHub release draft (or release ticket) with artifact and evidence links
 
 ## 3. Versioning policy
 
@@ -63,6 +64,7 @@ Run and record:
 2. `bun run typecheck`
 3. `bun run build`
 4. `bun run package`
+5. Confirm GitHub CI workflow (`.github/workflows/ci.yml`) is green for the release commit/PR.
 
 If any gate fails, release is blocked.
 
@@ -74,7 +76,7 @@ Packaging note:
 
 1. Install packaged artifact on a clean workspace.
 2. Execute smoke checks from `docs/RUNBOOK.md` section 4.
-3. Execute scenario-level run sheet from `docs/SMOKE_CHECKLIST_4PM.md`.
+3. Execute scenario-level run sheet from `docs/SMOKE_CHECKLIST.md`.
 4. Validate checklist items in `docs/MARKETPLACE_CHECKLIST.md`.
 
 ## 4.4 Release evidence capture

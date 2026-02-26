@@ -100,7 +100,7 @@ Run this smoke suite after install or upgrade:
    - Denied user cannot access logs endpoints/workflow.
    - Slash response remains private to invoking user (no room-visible `/logs` output message).
    - Slash card buttons are visible and functional for allowed user:
-     - `Copy sample` sends private response.
+     - `Show copy-ready sample` sends private response.
      - `Share sample` posts evidence to room/thread and writes audit entry.
      - `Share elsewhere` opens private modal and posts to target room/thread (membership-validated) with audit entry.
 2. Query check:
@@ -238,7 +238,7 @@ Checks:
 2. Confirm thread ID belongs to selected room.
 3. For `thread_note`, ensure `targetThreadId` is provided.
 
-## 7.5 Slash card button failures (`Copy sample` / `Share sample`)
+## 7.5 Slash card button failures (`Show copy-ready sample` / `Share sample`)
 
 Symptom: button appears but no expected output is produced.
 
@@ -253,9 +253,9 @@ Checks:
 
 Notes:
 
-- `Copy sample` is always private.
+- `Show copy-ready sample` is always private.
 - `Share sample` is room/thread-visible and audited.
-- Clipboard writes are not possible from Rocket.Chat Apps block actions; `Copy sample` returns a private copy-ready block.
+- Clipboard writes are not possible from Rocket.Chat Apps block actions; `Show copy-ready sample` returns a private copy-ready block.
 - If logs show `error-message-size-exceeded`, sample output exceeded workspace message-size limits; use the latest build with automatic chat-size truncation.
 
 ## 7.9 Share elsewhere failures
@@ -309,7 +309,7 @@ Checks:
      - `bun run dev:web`
 2. In token mode, confirm browser requests are same-origin path style:
    - `/api/apps/public/<appId>/config` or `/api/apps/private/<appId>/config`
-   - client attempts public first, then private on `404`.
+   - client attempts private first, then public on `404`.
 3. If your workspace exposes tokenized private routes, set:
    - `VITE_ROCKETCHAT_APP_API_BASE_PATH=<exact-base-path>`
 4. Restart dev server after changing any `VITE_*` variables or `web/vite.config.ts`.

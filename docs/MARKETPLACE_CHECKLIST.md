@@ -2,7 +2,11 @@
 
 Release-readiness checklist for Rocket.Chat Marketplace submission.
 
-Last updated: 2026-02-25
+Last updated: 2026-02-26
+
+Execution records:
+
+- `docs/SMOKE_CHECKLIST.md` (latest smoke evidence record)
 
 ## 1. Packaging and metadata
 
@@ -59,7 +63,7 @@ Last updated: 2026-02-25
 - [ ] GitHub push plan is current (`docs/GITHUB_PUSH_PLAN.md`).
 - [ ] RBAC review is current (`docs/RBAC_REVIEW.md`).
 - [ ] Drift register is updated (`docs/DRIFT_REGISTER.md`).
-- [ ] Handoff status is updated (`docs/HANDOFF.md`).
+- [ ] Smoke evidence and release notes are updated (`docs/SMOKE_CHECKLIST.md`, `CHANGELOG.md`).
 
 ## 6. Support and operations readiness
 

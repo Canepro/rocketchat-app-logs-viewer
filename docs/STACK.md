@@ -2,6 +2,8 @@
 
 Summary of what Rocket.Chat documents for app development and the concrete Bun-first stack for this project.
 
+**Project preferences:** **Bun** (package manager, scripts, CLI) and **shadcn/ui** (frontend components) are the preferred choices. Do not use npm for install or build; use `bunx` for CLI tools and add UI components via shadcn.
+
 ---
 
 ## 1. Rocket.Chat requirements (official docs vs current reality)

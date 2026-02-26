@@ -1,17 +1,17 @@
-# 4PM Cluster Smoke Checklist
+# Smoke Checklist
 
-Operational run-sheet for first live validation after cluster auto-start.
+Operational run-sheet for live validation of a packaged release.
 
 Last updated: 2026-02-26
 
 ## 1. Goal
 
-Validate `v0.1.1` candidate behavior end-to-end in a live Rocket.Chat workspace without changing release scope.
+Validate release behavior end-to-end in a live Rocket.Chat workspace.
 
 ## 2. Preconditions
 
 1. Cluster and workspace are healthy.
-2. App is enabled with current package (`logs-viewer_0.1.0.zip` build containing `v0.1.1` candidate changes).
+2. App is enabled with current package (`logs-viewer_<version>.zip`).
 3. Non-secret settings are confirmed:
    - `logs_source_mode`
    - `required_label_selector`
@@ -22,20 +22,20 @@ Validate `v0.1.1` candidate behavior end-to-end in a live Rocket.Chat workspace 
    - one allowed operator
    - one denied user
 
-## 2.1 Pre-filled run metadata (update at execution time)
+## 2.1 Run metadata (fill per execution)
 
 | Field | Value |
 |------|-------|
-| Date | `2026-02-26` |
-| Planned start | `16:00 local` |
-| Actual start | `16:17 local` |
-| Branch | `feature/v0.1.1-in-chat-ux` |
-| Candidate artifact | `dist/logs-viewer_0.1.0.zip` |
-| Artifact SHA256 | `b14a8b0719ad3e86ff8ca1d6fd292d580fa2bcc0d39522bd5501dd475bbaff40` |
-| Evidence root | `evidence/2026-02-26-v0.1.1-smoke/` |
-| Allowed user | `canepro` (observed in screenshot) |
+| Date | `YYYY-MM-DD` |
+| Planned start | `HH:MM local` |
+| Actual start | `HH:MM local` |
+| Branch | `main` |
+| Artifact | `dist/logs-viewer_<version>.zip` |
+| Artifact SHA256 | `TBD` |
+| Evidence root | `evidence/<date>-v<version>-smoke/` |
+| Allowed user | `TBD` |
 | Denied user | `TBD` |
-| Target room | `Support_Stuff` |
+| Target room | `TBD` |
 | Target thread | `TBD` |
 | Workspace URL | `TBD` |
 | Workspace version (`/api/info`) | `TBD` |
@@ -69,7 +69,7 @@ Expected:
 
 ## 3.3 Slash card actions
 
-1. Click `Copy sample`.
+1. Click `Show copy-ready sample`.
 2. Confirm private copy-ready block is returned.
 3. Click `Share sample`.
 4. Confirm room/thread post succeeds.
@@ -88,7 +88,7 @@ Expected:
 
 1. Run `/logs`.
 2. Wait enough time or use old card from prior run.
-3. Click `Copy sample` on stale card.
+3. Click `Show copy-ready sample` on stale card.
 
 Expected:
 - User gets fail-safe message to rerun `/logs`.
@@ -123,13 +123,13 @@ Expected:
 
 | Check | Result | Evidence | Notes |
 |------|--------|----------|-------|
-| Slash privacy | `PASS` | `screenshots/Screenshot_side_view.png` | Private contextual bar shows "Only you can see this /logs response". |
-| Summary readability | `PASS` | `screenshots/Screenshot_side_view.png` | Numbered preview, top levels/signals, and chat-size cap note visible. |
-| Copy sample | `PASS` | `screenshots/Screenshot_copy.png` | Private copy-ready sample message rendered in room context as user-only action response. |
-| Share sample + audit | `FAIL (diagnosed)` | `evidence/2026-02-26-v0.1.1-smoke/network/k8.canepro.me_from the workspaace2.har`, `evidence/2026-02-26-v0.1.1-smoke/network/k8.canepro.me_from the workspaace3.har` | Two root causes confirmed in Rocket.Chat logs: `error-message-size-exceeded` and then `Setting "Message_MaxAllowedSize" does not exist.`. Fixes implemented in current branch (chat-size-aware truncation + safe optional setting read); re-smoke required. |
-| Stale snapshot fail-safe | `PENDING` | `evidence/2026-02-26-v0.1.1-smoke/screenshots/` | |
-| Web readability controls | `PENDING` | `evidence/2026-02-26-v0.1.1-smoke/screenshots/` | |
-| Private-first probe behavior | `PENDING` | `evidence/2026-02-26-v0.1.1-smoke/network/` | |
+| Slash privacy | `PASS/FAIL` | `screenshots/02-slash-private-panel.png` | Private contextual bar shows "Only you can see this /logs response". |
+| Summary readability | `PASS/FAIL` | `screenshots/02-slash-private-panel.png` | Numbered preview, top levels/signals, and chat-size cap note visible. |
+| Show copy-ready sample | `PASS/FAIL` | `screenshots/03-copy-ready-sample.png` | Private copy-ready sample message rendered in room context as user-only action response. |
+| Share sample + audit | `PASS/FAIL` | `network/04-workspace-ui-interaction-resmoke-pass.har`, `screenshots/08-share-resmoke-pass.png` | Re-smoke should show `api/apps/ui.interaction` returning `200` and room-visible share output. |
+| Stale snapshot fail-safe | `PENDING` | `screenshots/04-stale-snapshot.png` | |
+| Web readability controls | `PENDING` | `screenshots/06-web-results-view.png` | |
+| Private-first probe behavior | `PENDING` | `network/05-localhost-devtools.har` | |
 
 ## 5. Evidence Collection
 
@@ -146,16 +146,16 @@ Capture:
 
 Recommended filenames:
 
-1. `screenshots/01-slash-private.png`
-2. `screenshots/02-summary-preview.png`
-3. `screenshots/03-copy-sample.png`
-4. `screenshots/04-share-sample-audit.png`
-5. `screenshots/05-stale-snapshot.png`
-6. `screenshots/06-web-readability-controls.png`
-7. `network/01-private-first-probe.har` (or screenshot if HAR unavailable)
+1. `screenshots/01-summary-preview.png`
+2. `screenshots/02-slash-private-panel.png`
+3. `screenshots/03-copy-ready-sample.png`
+4. `screenshots/04-stale-snapshot.png`
+5. `screenshots/05-audit-view.png`
+6. `screenshots/06-web-results-view.png`
+7. `network/01-workspace-ui-interaction.har` (or screenshot if HAR unavailable)
 8. `app-logs/01-action-window.log`
 9. `notes/run-notes.md`
 
 ## 6. Exit Criteria
 
-Release candidate may advance when all checks above pass or accepted deviations are documented with remediation owner/date.
+Release is considered validated when checks above pass or accepted deviations are documented with remediation owner/date.

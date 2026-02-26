@@ -27,7 +27,7 @@ Current `Unreleased` scope in `CHANGELOG.md` includes:
 
 Release manager note:
 
-- Next cut to stable should bump `app.json` to `0.1.1` and regenerate package/tag.
+- Next cut should bump `app.json` to `0.1.2` (or `0.2.0` if scope expands), then regenerate package/tag.
 
 ## 4. Next version recommendation
 
