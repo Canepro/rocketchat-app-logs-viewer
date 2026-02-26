@@ -51,8 +51,10 @@ Theme and contrast must work when embedded in Rocket.Chat. DESIGN.md §4.3 calls
 ### 2.1 Already improved
 
 - Enterprise shell: subtle gradient backdrop, bordered header, section cards.
+- Visual language refinement: non-generic observability palette (teal/cyan glow over deep surfaces) and clearer primary contrast.
 - Results: high-contrast monospace log surface, level-accented row rails, alternating row tones, truncated label chips with tooltips, 640px virtualized viewport.
 - UX: slash-context card with visible IDs, config error details, alert semantics, theme-aware select caret.
+- Sidebar readability: widened shell (`368px` inline, `min(380px, 100vw)` drawer) and removed viewport-only 3-column form grids from sidebar panels.
 
 ### 2.2 Follow-up backlog (post-v0.1 frontend)
 

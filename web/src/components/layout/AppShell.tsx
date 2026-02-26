@@ -46,7 +46,7 @@ export const AppShell = React.forwardRef<HTMLDivElement, AppShellProps>(
       <div
         ref={ref}
         className={cn(
-          'flex min-h-screen flex-col bg-[radial-gradient(circle_at_top,_hsl(var(--muted))_0%,_hsl(var(--background))_45%)] text-foreground',
+          'app-shell-surface flex min-h-screen flex-col text-foreground',
           className,
         )}
         {...props}
@@ -63,7 +63,7 @@ export const AppShell = React.forwardRef<HTMLDivElement, AppShellProps>(
                 onClick={() => onSidebarOpenChange?.(false)}
               />
               <aside
-                className="fixed inset-y-0 left-0 z-50 flex w-[min(320px,100vw)] flex-col border-r border-border bg-card shadow-xl overflow-y-auto"
+                className="fixed inset-y-0 left-0 z-50 flex w-[min(380px,100vw)] flex-col border-r border-border bg-card shadow-xl overflow-y-auto"
                 aria-label="Filters and controls"
               >
                 <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-3 py-2">
@@ -84,7 +84,7 @@ export const AppShell = React.forwardRef<HTMLDivElement, AppShellProps>(
           ) : null}
           {!isDrawerMode && showSidebar ? (
             <aside
-              className="flex w-[320px] shrink-0 flex-col border-r border-border bg-muted/20 overflow-y-auto"
+              className="flex w-[368px] shrink-0 flex-col border-r border-border/80 bg-muted/25 overflow-y-auto"
               aria-label="Filters and controls"
             >
               {sidebar}

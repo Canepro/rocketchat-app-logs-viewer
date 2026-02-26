@@ -964,7 +964,7 @@ export function App() {
         </div>
       }
       sidebar={
-        <div className="flex flex-col gap-4 p-4">
+        <div className="flex flex-col gap-5 p-5 text-[13px] leading-5">
           {prefill.context.roomId || prefill.context.threadId ? (
           <Card className="border-primary/20 shadow-sm">
             <CardHeader className="py-3">
@@ -990,8 +990,8 @@ export function App() {
               <CardDescription>Uses app endpoint <code>/query</code> with server-side guardrails.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Time</p>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Time</p>
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="time-mode">Time mode</Label>
                   <Select id="time-mode" value={timeMode} onChange={(e) => setTimeMode(e.target.value as 'relative' | 'absolute')}>
@@ -1023,8 +1023,8 @@ export function App() {
                   <Input id="limit" type="number" min={1} value={limit} onChange={(e) => setLimit(e.target.value)} />
                 </div>
               </div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Filters</p>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Filters</p>
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="level">Level</Label>
                   <Select id="level" value={level} onChange={(e) => setLevel(e.target.value as QueryLevel | '')}>
@@ -1035,7 +1035,7 @@ export function App() {
                   </Select>
                 </div>
 
-                <div className="space-y-1.5 sm:col-span-2 xl:col-span-1">
+                <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="search">Search</Label>
                   <Input
                     id="search"
@@ -1045,8 +1045,8 @@ export function App() {
                   />
                 </div>
               </div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Options</p>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Options</p>
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="poll-interval">Polling (sec)</Label>
                   <Input
@@ -1098,7 +1098,7 @@ export function App() {
               ) : null}
 
               {logsMutation.data ? (
-                <div className="grid gap-3 rounded-lg border border-border/70 bg-muted/20 p-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-3 rounded-lg border border-border/70 bg-muted/20 p-3 text-xs sm:grid-cols-2">
                   <p><span className="text-muted-foreground">Returned:</span> <span className="font-semibold text-foreground">{logsMutation.data.meta.returned}</span></p>
                   <p><span className="text-muted-foreground">Truncated:</span> <span className="font-semibold text-foreground">{String(logsMutation.data.meta.truncated)}</span></p>
                   <p><span className="text-muted-foreground">Redacted lines:</span> <span className="font-semibold text-foreground">{logsMutation.data.meta.redaction?.redactedLines ?? 0}</span></p>
@@ -1117,7 +1117,7 @@ export function App() {
               <CardDescription>Reads app endpoint <code>/audit</code>.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="audit-user">User ID</Label>
                   <Input id="audit-user" value={auditUserId} onChange={(e) => setAuditUserId(e.target.value)} placeholder="Optional" />
@@ -1131,7 +1131,7 @@ export function App() {
                     ))}
                   </Select>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="audit-limit">Limit</Label>
                   <Input id="audit-limit" type="number" min={1} value={auditLimit} onChange={(e) => setAuditLimit(e.target.value)} />
                 </div>

@@ -18,7 +18,7 @@ The UI is split into two main areas:
 
 **Rationale:** Operators open the viewer to scan and act on logs. The main pane is the log stream; the sidebar holds supporting controls. This matches patterns used by Grafana, Datadog Logs, and CloudWatch.
 
-**Responsive:** On viewports &lt; 768px (and when embedded in a narrow Rocket.Chat contextual bar), the sidebar is a **drawer**: hidden by default, opened via the **Filters** button in the header. The drawer overlays the main area, has a close (X) button and click-outside-to-close. Above 768px the sidebar is inline (always visible). See `useMediaQuery(SIDEBAR_INLINE_BREAKPOINT)` and `AppShell` props `isDrawerMode`, `sidebarOpen`, `onSidebarOpenChange`.
+**Responsive:** On viewports &lt; 768px (and when embedded in a narrow Rocket.Chat contextual bar), the sidebar is a **drawer**: hidden by default, opened via the **Filters** button in the header. The drawer overlays the main area, has a close (X) button and click-outside-to-close. Above 768px the sidebar is inline (always visible). Current widths are tuned for readability: `368px` inline and `min(380px, 100vw)` in drawer mode. See `useMediaQuery(SIDEBAR_INLINE_BREAKPOINT)` and `AppShell` props `isDrawerMode`, `sidebarOpen`, `onSidebarOpenChange`.
 
 ---
 
@@ -26,6 +26,7 @@ The UI is split into two main areas:
 
 - **Light / dark:** Controlled by CSS class `dark` on `document.documentElement`. Theme is resolved in this order: user toggle (persisted in `localStorage` key `logs-viewer-theme`) → `prefers-color-scheme` → default light.
 - **Tokens:** All colors use CSS custom properties in `src/index.css` (`:root` and `.dark`). Semantic tokens: `--background`, `--foreground`, `--card`, `--primary`, `--muted`, `--border`, etc. Log message surface uses `--log-surface-bg` and `--log-surface-fg` so the monospace block respects light/dark without hardcoded colors.
+- **Visual direction:** The shell uses an observability-style cyan/blue glow surface (`.app-shell-surface`) to avoid generic flat-dark styling and keep primary actions distinct from content regions.
 - **Embedding:** When run inside Rocket.Chat, theme can later be driven by host message or URL param; for now we respect system and user toggle.
 
 ---

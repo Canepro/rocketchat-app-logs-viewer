@@ -3,15 +3,15 @@
 @tailwind utilities;
 
 :root {
-  --background: 0 0% 100%;
-  --foreground: 222.2 47% 11%;
+  --background: 198 36% 97%;
+  --foreground: 214 34% 16%;
   --card: 0 0% 100%;
-  --card-foreground: 222.2 47% 11%;
-  --primary: 221.2 83.2% 53.3%;
+  --card-foreground: 214 34% 16%;
+  --primary: 174 84% 37%;
   --primary-foreground: 210 40% 98%;
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --border: 214.3 31.8% 91.4%;
+  --muted: 197 32% 93%;
+  --muted-foreground: 212 19% 41%;
+  --border: 204 30% 84%;
   --radius: 0.5rem;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 98%;
@@ -19,26 +19,30 @@
   --success-foreground: 0 0% 98%;
   --warning: 38 92% 50%;
   --warning-foreground: 0 0% 98%;
+  --shell-glow-primary: 182 89% 43%;
+  --shell-glow-secondary: 205 92% 55%;
   /* Log message surface: high-contrast monospace block (light theme) */
-  --log-surface-bg: 222 47% 11%;
+  --log-surface-bg: 210 48% 11%;
   --log-surface-fg: 210 40% 98%;
 }
 
 .dark {
-  --background: 222.2 47% 11%;
+  --background: 213 58% 11%;
   --foreground: 210 40% 98%;
-  --card: 222.2 47% 14%;
+  --card: 214 52% 15%;
   --card-foreground: 210 40% 98%;
-  --primary: 217.2 91% 60%;
+  --primary: 173 76% 44%;
   --primary-foreground: 222.2 47% 11%;
-  --muted: 217.2 33% 17%;
-  --muted-foreground: 215 20% 65%;
-  --border: 217.2 33% 22%;
+  --muted: 214 38% 19%;
+  --muted-foreground: 211 20% 73%;
+  --border: 214 31% 27%;
   --destructive: 0 63% 51%;
   --success: 142 71% 45%;
   --warning: 38 92% 50%;
+  --shell-glow-primary: 173 84% 34%;
+  --shell-glow-secondary: 202 94% 44%;
   /* Log message surface (dark theme): slightly lighter than card for contrast */
-  --log-surface-bg: 222 47% 8%;
+  --log-surface-bg: 211 46% 9%;
   --log-surface-fg: 210 40% 98%;
 }
 
@@ -50,6 +54,14 @@ body {
   margin: 0;
   @apply bg-background text-foreground antialiased;
   font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+}
+
+/* Distinct observability shell: cyan/blue glow over deep-surface background. */
+.app-shell-surface {
+  background:
+    radial-gradient(1100px 460px at 0% -5%, hsl(var(--shell-glow-primary) / 0.28), transparent 62%),
+    radial-gradient(980px 420px at 100% -10%, hsl(var(--shell-glow-secondary) / 0.2), transparent 60%),
+    hsl(var(--background));
 }
 
 /* Log content: monospace for scanability */
