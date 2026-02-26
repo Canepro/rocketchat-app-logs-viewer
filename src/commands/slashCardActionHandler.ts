@@ -11,8 +11,11 @@ import {
     SLASH_CARD_ACTION,
     SlashCardActionPayload,
 } from './slashCardActions';
+import { readSlashCardSampleSnapshot } from './slashCardSampleStore';
 
 const CODE_FENCE = '```';
+const COPY_OUTPUT_MAX_LINES = 60;
+const SHARE_OUTPUT_MAX_LINES = 60;
 
 export const handleSlashCardBlockAction = async (
     appId: string,
@@ -43,7 +46,17 @@ export const handleSlashCardBlockAction = async (
         return true;
     }
 
-    const roomContext = await resolveRoomContext(read, interaction.room, payload.roomId);
+    // Resolve sample context from per-user persisted snapshot so actions stay reliable with large samples.
+    const resolvedPayload = await resolveActionPayloadForActor(read, actor.id, payload);
+    if (!resolvedPayload) {
+        await notifyUserOnly(actor, interaction.room, appUser, modify, [
+            'Sample details are no longer available for this slash card.',
+            'Run `/logs` again to refresh the quick triage snapshot.',
+        ]);
+        return true;
+    }
+
+    const roomContext = await resolveRoomContext(read, interaction.room, resolvedPayload.roomId);
 
     const settingsReader = read.getEnvironmentReader().getSettings();
     const [allowedRolesRaw, retentionDaysRaw, maxEntriesRaw] = await Promise.all([
@@ -68,8 +81,8 @@ export const handleSlashCardBlockAction = async (
                     reason: 'role_denied',
                     scope: {
                         source: 'slash_card',
-                        roomId: payload.roomId,
-                        threadId: payload.threadId || null,
+                        roomId: resolvedPayload.roomId,
+                        threadId: resolvedPayload.threadId || null,
                     },
                 },
                 auditRetentionDays,
@@ -84,11 +97,22 @@ export const handleSlashCardBlockAction = async (
     }
 
     if (interaction.actionId === SLASH_CARD_ACTION.COPY_SAMPLE) {
-        await notifyUserOnly(actor, roomContext, appUser, modify, buildCopyResponseLines(payload));
+        await notifyUserOnly(actor, roomContext, appUser, modify, buildCopyResponseLines(resolvedPayload));
         return true;
     }
 
-    await handleShareSample(actor, roomContext, interaction.threadId, payload, appUser, read, modify, persistence, auditRetentionDays, auditMaxEntries);
+    await handleShareSample(
+        actor,
+        roomContext,
+        interaction.threadId,
+        resolvedPayload,
+        appUser,
+        read,
+        modify,
+        persistence,
+        auditRetentionDays,
+        auditMaxEntries,
+    );
     return true;
 };
 
@@ -113,7 +137,8 @@ const handleShareSample = async (
 
     const roomId = roomContext.id || payload.roomId;
     const threadId = payload.threadId || interactionThreadId || undefined;
-    const sampleLines = formatSampleLines(payload);
+    const sampleLines = formatSampleLines(payload, { withIndex: true, maxLines: SHARE_OUTPUT_MAX_LINES });
+    const sampleStats = getSampleStats(payload, sampleLines.length);
 
     const messageBuilder = modify.getCreator().startMessage();
     messageBuilder.setSender(appUser);
@@ -124,7 +149,7 @@ const handleShareSample = async (
         // Preserve slash thread context when available for incident timelines.
         messageBuilder.setThreadId(threadId);
     }
-    messageBuilder.setText(buildShareMessage(payload, sampleLines));
+    messageBuilder.setText(buildShareMessage(payload, sampleLines, sampleStats));
     await modify.getCreator().finish(messageBuilder);
 
     await appendAuditEntry(
@@ -138,7 +163,8 @@ const handleShareSample = async (
                 source: 'slash_card',
                 roomId,
                 threadId: threadId || null,
-                sampleCount: sampleLines.length,
+                sampleCount: sampleStats.displayedCount,
+                sampleTotalCount: sampleStats.totalCount,
             },
         },
         auditRetentionDays,
@@ -146,12 +172,13 @@ const handleShareSample = async (
     );
 
     await notifyUserOnly(actor, roomContext, appUser, modify, [
-        `Shared ${sampleLines.length} sample line(s) to ${threadId ? 'thread' : 'room'} successfully.`,
+        `Shared ${sampleStats.displayedCount} of ${sampleStats.totalCount} sampled line(s) to ${threadId ? 'thread' : 'room'} successfully.`,
     ]);
 };
 
 const buildCopyResponseLines = (payload: SlashCardActionPayload): Array<string> => {
-    const sampleLines = formatSampleLines(payload);
+    const sampleLines = formatSampleLines(payload, { withIndex: true, maxLines: COPY_OUTPUT_MAX_LINES });
+    const sampleStats = getSampleStats(payload, sampleLines.length);
     if (sampleLines.length === 0) {
         return [
             'Copy-ready sample is unavailable for this result.',
@@ -163,17 +190,23 @@ const buildCopyResponseLines = (payload: SlashCardActionPayload): Array<string> 
         'Copy-ready sample (private):',
         // Provide a code block so operators can paste exact lines into tickets/incidents.
         `${CODE_FENCE}\n${toCodeBlock(sampleLines.join('\n'))}\n${CODE_FENCE}`,
-        `Source=${payload.sourceMode} Window=${payload.windowLabel} Filters=${payload.filterSummary}`,
+        `Lines=${sampleStats.displayedCount}/${sampleStats.totalCount} Source=${payload.sourceMode} Window=${payload.windowLabel} Filters=${payload.filterSummary}`,
+        sampleStats.truncated ? 'Sample output was truncated for chat readability. Use Open Logs Viewer for full result.' : '',
     ];
 };
 
-const buildShareMessage = (payload: SlashCardActionPayload, sampleLines: Array<string>): string => {
+const buildShareMessage = (
+    payload: SlashCardActionPayload,
+    sampleLines: Array<string>,
+    sampleStats: { displayedCount: number; totalCount: number; truncated: boolean },
+): string => {
     const lines = [
         '*Logs sample shared from `/logs`*',
         `Source: \`${payload.sourceMode}\``,
         `Window: ${payload.windowLabel}`,
         `Filters: ${payload.filterSummary}`,
         `Preset: ${payload.preset}`,
+        `Lines: ${sampleStats.displayedCount}/${sampleStats.totalCount}`,
     ];
 
     if (sampleLines.length === 0) {
@@ -185,6 +218,9 @@ const buildShareMessage = (payload: SlashCardActionPayload, sampleLines: Array<s
     lines.push(CODE_FENCE);
     lines.push(toCodeBlock(sampleLines.join('\n')));
     lines.push(CODE_FENCE);
+    if (sampleStats.truncated) {
+        lines.push('Sample output was truncated for chat readability. Use Open Logs Viewer for full result.');
+    }
 
     return lines.join('\n');
 };
@@ -239,4 +275,48 @@ const resolveRoomContext = async (
     } catch {
         return undefined;
     }
+};
+
+const resolveActionPayloadForActor = async (
+    read: IRead,
+    actorId: string,
+    payload: SlashCardActionPayload,
+): Promise<SlashCardActionPayload | undefined> => {
+    if (!payload.snapshotId) {
+        return payload.sampleOutput.length > 0 || payload.sampleTotalCount === 0 ? payload : undefined;
+    }
+
+    try {
+        const snapshot = await readSlashCardSampleSnapshot(read, actorId, payload.snapshotId);
+        if (!snapshot) {
+            return payload.sampleOutput.length > 0 ? payload : undefined;
+        }
+
+        return {
+            ...payload,
+            roomId: snapshot.roomId,
+            roomName: snapshot.roomName,
+            threadId: snapshot.threadId,
+            sourceMode: snapshot.sourceMode,
+            windowLabel: snapshot.windowLabel,
+            filterSummary: snapshot.filterSummary,
+            preset: snapshot.preset,
+            sampleOutput: snapshot.sampleOutput,
+            sampleTotalCount: snapshot.sampleTotalCount,
+        };
+    } catch {
+        return payload.sampleOutput.length > 0 ? payload : undefined;
+    }
+};
+
+const getSampleStats = (
+    payload: SlashCardActionPayload,
+    displayedCount: number,
+): { displayedCount: number; totalCount: number; truncated: boolean } => {
+    const totalCount = Math.max(displayedCount, payload.sampleTotalCount || payload.sampleOutput.length || displayedCount);
+    return {
+        displayedCount,
+        totalCount,
+        truncated: totalCount > displayedCount,
+    };
 };

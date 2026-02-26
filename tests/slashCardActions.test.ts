@@ -19,6 +19,8 @@ describe('slashCardActions helpers', () => {
             windowLabel: 'last 15m',
             filterSummary: 'since=15m, limit=200',
             preset: 'none',
+            snapshotId: 'snap_abc',
+            sampleTotalCount: 12,
             sampleOutput: [
                 { level: 'error', text: '2026-02-25T10:00:00.000Z Connection ended' },
             ],
@@ -30,6 +32,8 @@ describe('slashCardActions helpers', () => {
         expect(decoded).toBeDefined();
         expect(decoded?.roomId).toBe('room-1');
         expect(decoded?.sampleOutput.length).toBe(1);
+        expect(decoded?.snapshotId).toBe('snap_abc');
+        expect(decoded?.sampleTotalCount).toBe(12);
         expect(formatSampleLines(decoded!)[0]).toContain('[error]');
     });
 

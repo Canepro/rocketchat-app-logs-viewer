@@ -85,6 +85,9 @@ describe('LogsSlashCommand visibility behavior', () => {
         getUserReader: () => ({
             getAppUser: async () => appUser,
         }),
+        getPersistenceReader: () => ({
+            readByAssociation: async () => [],
+        }),
         getEnvironmentReader: () => ({
             getSettings: () => ({
                 getValueById: async (id: string) => {
@@ -228,12 +231,123 @@ describe('LogsSlashCommand visibility behavior', () => {
         expect(flattenedText).toContain('Quick triage summary');
         expect(flattenedText).toContain('Sample lines: 3');
         expect(flattenedText).toContain('Top levels: error:3');
-        expect(flattenedText).toContain('Sample output preview:');
+        expect(flattenedText).toContain('Sample preview: showing 3/3 sampled lines');
         expect(flattenedText).toContain('2026-01-01T00:00:00.000Z');
-        expect(flattenedText).toContain('[error] 2026-01-01T00:00:00.000Z Connection ended');
+        expect(flattenedText).toContain('01 [error] 2026-01-01T00:00:00.000Z Connection ended');
         expect(flattenedText).toContain('Connection ended');
         expect(notifications.length).toBe(0);
         expect(finishes.length).toBe(0);
+    });
+
+    it('stores snapshot-backed slash sample payload when persistence is available', async () => {
+        const command = new LogsSlashCommand('test-app-id');
+        const opens: Array<any> = [];
+        const persistenceWrites: Array<any> = [];
+
+        const modify: any = {
+            getCreator: () => ({
+                startMessage: () => createMessageBuilder(),
+                getBlockBuilder: () => createBlockBuilder(),
+                finish: async () => 'message-id',
+            }),
+            getNotifier: () => ({
+                notifyUser: async () => undefined,
+            }),
+            getUiController: () => ({
+                openSurfaceView: async (view: unknown, interaction: unknown, user: unknown) => {
+                    opens.push({ view, interaction, user });
+                },
+            }),
+        };
+
+        const context: any = {
+            getSender: () => ({ id: 'u1', username: 'vincent', roles: ['admin'] }),
+            getRoom: () => room,
+            getArguments: () => ['since=15m', 'limit=200'],
+            getThreadId: () => undefined,
+            getTriggerId: () => 'trigger-1',
+        };
+
+        await command.executor(
+            context,
+            createRead(),
+            modify,
+            createHttp(),
+            {
+                updateByAssociation: async (...args: Array<unknown>) => {
+                    persistenceWrites.push(args);
+                },
+            } as any,
+        );
+
+        expect(opens.length).toBe(1);
+        expect(persistenceWrites.length).toBe(1);
+        const actionBlocks = ((opens[0].view as any).blocks as Array<any>).filter((block) => block.type === 'actions');
+        const cardActionButtons = (actionBlocks[1]?.elements || []) as Array<any>;
+        const decodedPayload = decodeSlashCardActionPayload(cardActionButtons[0]?.value);
+        expect(decodedPayload?.snapshotId).toBeDefined();
+        expect(decodedPayload?.sampleOutput.length).toBe(0);
+        expect(decodedPayload?.sampleTotalCount).toBe(3);
+    });
+
+    it('caps markdown sample preview when sampled output is too large for chat block', async () => {
+        const command = new LogsSlashCommand('test-app-id');
+        const opens: Array<any> = [];
+
+        const modify: any = {
+            getCreator: () => ({
+                startMessage: () => createMessageBuilder(),
+                getBlockBuilder: () => createBlockBuilder(),
+                finish: async () => 'message-id',
+            }),
+            getNotifier: () => ({
+                notifyUser: async () => undefined,
+            }),
+            getUiController: () => ({
+                openSurfaceView: async (view: unknown, interaction: unknown, user: unknown) => {
+                    opens.push({ view, interaction, user });
+                },
+            }),
+        };
+
+        const largeValues = Array.from({ length: 30 }, (_, index) => ([
+            String(1767225600000000000 + index),
+            JSON.stringify({
+                msg: `Huge sample message ${index + 1} ${'x'.repeat(260)}`,
+            }),
+        ]));
+
+        const context: any = {
+            getSender: () => ({ id: 'u1', username: 'vincent', roles: ['admin'] }),
+            getRoom: () => room,
+            getArguments: () => ['since=15m', 'limit=200'],
+            getThreadId: () => undefined,
+            getTriggerId: () => 'trigger-1',
+        };
+
+        await command.executor(
+            context,
+            createRead(),
+            modify,
+            createHttp({
+                data: {
+                    status: 'success',
+                    data: {
+                        result: [
+                            {
+                                stream: { level: 'error' },
+                                values: largeValues,
+                            },
+                        ],
+                    },
+                },
+            }),
+            {} as any,
+        );
+
+        expect(opens.length).toBe(1);
+        const flattenedText = JSON.stringify((opens[0].view as any).blocks);
+        expect(flattenedText).toContain('chat-size cap');
     });
 
     it('returns app_logs summary note when source mode is app_logs', async () => {
