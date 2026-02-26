@@ -1,17 +1,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Database, FileText, History, Search } from 'lucide-react';
+import { ChevronDown, Copy, Database, FileText, Filter, History, MessageSquarePlus, Search, Share2 } from 'lucide-react';
 
+import { AppShell } from '@/components/layout/AppShell';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
+import { SkeletonRows } from '@/components/SkeletonRows';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Select } from '@/components/ui/select';
 import {
   DEFAULT_POLLING_INTERVAL_SECONDS,
@@ -19,6 +28,7 @@ import {
   MIN_POLLING_INTERVAL_SECONDS,
   parsePollingIntervalSeconds,
 } from '@/lib/polling';
+import { SIDEBAR_INLINE_BREAKPOINT, useMediaQuery } from '@/lib/useMediaQuery';
 import {
   AuditOutcome,
   LogsActionType,
@@ -303,6 +313,10 @@ export function App() {
   const pollTickInFlightRef = useRef(false);
   const isQueryPendingRef = useRef(false);
 
+  const isDesktop = useMediaQuery(SIDEBAR_INLINE_BREAKPOINT);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const sidebarVisible = isDesktop || sidebarOpen;
+
   const configQuery = useQuery({
     queryKey: ['logs-config'],
     queryFn: getConfig,
@@ -569,6 +583,11 @@ export function App() {
   const selectedRoomTarget = availableRoomTargets.find((target) => target.id === normalizedActionRoomId);
   const selectedThreadTarget = availableThreadTargets.find((target) => target.id === normalizedActionThreadId);
   const selectedSavedView = availableSavedViews.find((view) => view.id === selectedSavedViewId);
+  const auditEntries = auditQuery.data?.entries || [];
+  const isAuditListLoading = auditQuery.isPending && !auditError;
+  const isViewsListLoading = viewsQuery.isPending && !viewsError;
+  const isTargetsListLoading = targetsQuery.isPending && !targetsError;
+  const isThreadsListLoading = isRoomTargetReady && threadsQuery.isPending && !threadsError;
   const expandedRowCount = Object.values(expandedRows).filter(Boolean).length;
 
   useEffect(() => {
@@ -905,33 +924,48 @@ export function App() {
   );
 
   return (
-    <main
-      className="min-h-screen bg-[radial-gradient(circle_at_top,_hsl(var(--muted))_0%,_hsl(var(--background))_45%)] text-foreground"
-      role="main"
-    >
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:px-8 lg:py-8">
-        <header className="rounded-xl border border-border/80 bg-card/90 px-5 py-4 shadow-sm backdrop-blur">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Logs Viewer</h1>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={isPolling ? 'secondary' : 'outline'}>
-                {isPolling ? `Live ${pollIntervalSec}s` : 'Off'}
-              </Badge>
-              {prefill.preset ? <Badge variant="secondary">{prefill.preset}</Badge> : null}
-              {prefill.autorun ? <Badge variant="outline">Autorun</Badge> : null}
-              {prefill.context.source ? <Badge variant="outline">{prefill.context.source}</Badge> : null}
-            </div>
+    <AppShell
+      isDrawerMode={!isDesktop}
+      sidebarOpen={sidebarVisible}
+      onSidebarOpenChange={setSidebarOpen}
+      header={
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-6">
+          <div className="flex items-center gap-2">
+            {!isDesktop ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Open filters and controls"
+              >
+                <Filter className="h-4 w-4 mr-1.5" aria-hidden />
+                Filters
+              </Button>
+            ) : null}
+            <h1 className="text-xl font-semibold tracking-tight md:text-2xl">Logs Viewer</h1>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Query logs via the app API. Default range: {configQuery.data?.config.defaultTimeRange ?? '—'} · Max lines: {configQuery.data?.config.maxLinesPerQuery ?? '—'}
+          <div className="flex flex-wrap items-center gap-2">
+            <ThemeToggle />
+            <Badge variant={isPolling ? 'secondary' : 'outline'}>
+              {isPolling ? `Live ${pollIntervalSec}s` : 'Off'}
+            </Badge>
+            {prefill.preset ? <Badge variant="secondary">{prefill.preset}</Badge> : null}
+            {prefill.autorun ? <Badge variant="outline">Autorun</Badge> : null}
+            {prefill.context.source ? <Badge variant="outline">{prefill.context.source}</Badge> : null}
+          </div>
+          <p className="text-xs text-muted-foreground w-full mt-1">
+            Default range: {configQuery.data?.config.defaultTimeRange ?? '—'} · Max lines: {configQuery.data?.config.maxLinesPerQuery ?? '—'}
           </p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+          <div className="mt-1 flex flex-wrap items-center gap-2 w-full">
             <Badge variant="outline">App: {runtime.appId}</Badge>
-            <Badge variant="outline">API base: {runtime.privateApiBase}</Badge>
+            <Badge variant="outline">API: {runtime.privateApiBase}</Badge>
           </div>
-        </header>
-
-        {prefill.context.roomId || prefill.context.threadId ? (
+        </div>
+      }
+      sidebar={
+        <div className="flex flex-col gap-4 p-4">
+          {prefill.context.roomId || prefill.context.threadId ? (
           <Card className="border-primary/20 shadow-sm">
             <CardHeader className="py-3">
               <CardTitle className="text-sm font-medium">From /logs</CardTitle>
@@ -946,24 +980,17 @@ export function App() {
           </Card>
         ) : null}
 
-        {configError ? (
-          <ErrorState
-            title="Config unavailable"
-            message={isPrivateApiError(configError) ? `${configError.message} (HTTP ${configError.status})` : 'Could not load app config.'}
-            details={isPrivateApiError(configError) ? formatErrorDetails(configError.details) ?? undefined : undefined}
-          />
-        ) : null}
-
-        <section className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-          <Card className="border-border/80 shadow-sm">
+          <section className="grid gap-3 lg:grid-cols-1">
+          <Card className="border-border/80 shadow-sm" role="region" aria-labelledby="query-logs-heading">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Search className="h-4 w-4" />
+              <CardTitle id="query-logs-heading" className="flex items-center gap-2 text-base">
+                <Search className="h-4 w-4" aria-hidden />
                 Query logs
               </CardTitle>
               <CardDescription>Uses app endpoint <code>/query</code> with server-side guardrails.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Time</p>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="time-mode">Time mode</Label>
@@ -995,7 +1022,9 @@ export function App() {
                   <Label htmlFor="limit">Limit</Label>
                   <Input id="limit" type="number" min={1} value={limit} onChange={(e) => setLimit(e.target.value)} />
                 </div>
-
+              </div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Filters</p>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="level">Level</Label>
                   <Select id="level" value={level} onChange={(e) => setLevel(e.target.value as QueryLevel | '')}>
@@ -1015,7 +1044,9 @@ export function App() {
                     placeholder="Optional text filter"
                   />
                 </div>
-
+              </div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Options</p>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="poll-interval">Polling (sec)</Label>
                   <Input
@@ -1122,11 +1153,13 @@ export function App() {
               <p className="text-xs text-muted-foreground">Entries: {auditQuery.data?.meta.total ?? 0}</p>
 
               <div className="max-h-72 overflow-auto rounded-md border">
-                {(auditQuery.data?.entries || []).length === 0 ? (
+                {isAuditListLoading ? (
+                  <SkeletonRows rows={5} label="Loading audit entries" className="m-2 border-none bg-transparent p-0" />
+                ) : auditEntries.length === 0 ? (
                   <EmptyState title="No audit entries" description="Run queries or actions to see audit trail." />
                 ) : (
                   <ul className="divide-y">
-                    {auditQuery.data?.entries.map((entry, index) => (
+                    {auditEntries.map((entry, index) => (
                       <li key={`${entry.timestamp}-${entry.userId}-${index}`} className="p-3 text-xs">
                         <div className="flex items-center justify-between gap-2">
                           <Badge variant={entry.outcome === 'denied' ? 'secondary' : 'outline'}>{entry.outcome}</Badge>
@@ -1195,7 +1228,9 @@ export function App() {
                 {viewsQuery.data?.views.meta.returned ?? 0} / {viewsQuery.data?.views.meta.total ?? 0} views
               </p>
               <div className="max-h-40 overflow-auto rounded-md border sm:col-span-2">
-                {availableSavedViews.length === 0 ? (
+                {isViewsListLoading ? (
+                  <SkeletonRows rows={4} label="Loading saved views" className="m-2 border-none bg-transparent p-0" />
+                ) : availableSavedViews.length === 0 ? (
                   <EmptyState
                     icon={<FileText className="h-8 w-8" />}
                     title="No saved views"
@@ -1237,15 +1272,15 @@ export function App() {
         </Card>
 
         <Card className="border-border/80 shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
+          <CardHeader className="py-3">
+            <CardTitle className="flex items-center gap-2 text-sm">
               <Database className="h-4 w-4" />
-              Query results
+              Targets
             </CardTitle>
-            <CardDescription>Virtualized rendering for large responses and Rocket.Chat-native row actions.</CardDescription>
+            <CardDescription className="text-xs">Room and thread for row actions (share, incident, thread note).</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="mb-4 grid gap-3 rounded-lg border border-border bg-muted/20 p-4 sm:grid-cols-2">
+          <CardContent className="space-y-3">
+            <div className="grid gap-3 rounded-lg border border-border bg-muted/20 p-3 sm:grid-cols-1">
               <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="room-search">Room target</Label>
                 <div className="flex gap-2">
@@ -1274,7 +1309,9 @@ export function App() {
                   </p>
                 ) : null}
                 <div className="mt-2 max-h-28 overflow-auto rounded-md border">
-                  {availableRoomTargets.length === 0 ? (
+                  {isTargetsListLoading ? (
+                    <SkeletonRows rows={3} label="Loading room targets" className="m-2 border-none bg-transparent p-0" />
+                  ) : availableRoomTargets.length === 0 ? (
                     <EmptyState title="No rooms" description="Use manual room ID below or refine search." className="py-4" />
                   ) : (
                     <div className="flex flex-wrap gap-2 p-2">
@@ -1346,6 +1383,8 @@ export function App() {
                 <div className="mt-2 max-h-36 overflow-auto rounded-md border">
                   {!isRoomTargetReady ? (
                     <EmptyState title="Select room" description="Choose a room to see threads." className="py-4" />
+                  ) : isThreadsListLoading ? (
+                    <SkeletonRows rows={4} label="Loading thread targets" className="m-2 border-none bg-transparent p-0" />
                   ) : availableThreadTargets.length === 0 ? (
                     <EmptyState title="No threads" description="Enter thread ID below or refine search." className="py-4" />
                   ) : (
@@ -1410,46 +1449,54 @@ export function App() {
               {actionSuccess ? <Alert variant="success" className="sm:col-span-2">{actionSuccess}</Alert> : null}
               {actionError ? <Alert variant="destructive" className="sm:col-span-2">{actionError}</Alert> : null}
             </div>
-
-            {entries.length === 0 ? (
-              <EmptyState
-                icon={<Search className="h-10 w-10" />}
-                title="No results"
-                description="Set time range, level, and filters above, then run a query."
-              />
-            ) : (
-              <>
-                <div className="mb-3 grid gap-3 rounded-lg border border-border/80 bg-muted/20 p-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="message-view">Message view</Label>
-                    <Select
-                      id="message-view"
-                      value={messageViewMode}
-                      onChange={(e) => setMessageViewMode(e.target.value as 'raw' | 'pretty')}
-                    >
-                      <option value="pretty">Pretty (JSON)</option>
-                      <option value="raw">Raw</option>
-                    </Select>
-                  </div>
-                  <div className="flex items-end">
-                    <Button size="sm" variant={wrapLogLines ? 'secondary' : 'outline'} onClick={() => setWrapLogLines((value) => !value)}>
-                      {wrapLogLines ? 'Wrap: on' : 'Wrap: off'}
-                    </Button>
-                  </div>
-                  <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={expandedRowCount === 0}
-                      onClick={() => setExpandedRows({})}
-                    >
-                      Collapse all
-                    </Button>
-                    <Badge variant="outline">rows: {entries.length}</Badge>
-                    <Badge variant="outline">expanded: {expandedRowCount}</Badge>
-                  </div>
+          </CardContent>
+        </Card>
+        </div>
+      }
+    >
+      {configError ? (
+        <ErrorState
+          title="Config unavailable"
+          message={isPrivateApiError(configError) ? `${configError.message} (HTTP ${configError.status})` : 'Could not load app config.'}
+          details={isPrivateApiError(configError) ? formatErrorDetails(configError.details) ?? undefined : undefined}
+        />
+      ) : null}
+      <div className="flex flex-col p-4 md:p-6 min-h-0">
+        {entries.length === 0 ? (
+          <EmptyState
+            icon={<Search className="h-10 w-10" />}
+            title="No results"
+            description="Set time range, level, and filters in the sidebar, then run a query."
+          />
+        ) : (
+          <>
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-border/80 bg-muted/20 px-3 py-2">
+                  <Label htmlFor="message-view" className="sr-only">Message view</Label>
+                  <Select
+                    id="message-view"
+                    value={messageViewMode}
+                    onChange={(e) => setMessageViewMode(e.target.value as 'raw' | 'pretty')}
+                    className="w-auto min-w-[8rem]"
+                  >
+                    <option value="pretty">Pretty (JSON)</option>
+                    <option value="raw">Raw</option>
+                  </Select>
+                  <Button size="sm" variant={wrapLogLines ? 'secondary' : 'outline'} onClick={() => setWrapLogLines((value) => !value)} aria-pressed={wrapLogLines}>
+                    {wrapLogLines ? 'Wrap on' : 'Wrap off'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={expandedRowCount === 0}
+                    onClick={() => setExpandedRows({})}
+                    aria-label="Collapse all expanded rows"
+                  >
+                    Collapse all
+                  </Button>
+                  <span className="text-xs text-muted-foreground">rows {entries.length}</span>
+                  <span className="text-xs text-muted-foreground">expanded {expandedRowCount}</span>
                   {copyRowError ? (
-                    <Alert variant="destructive" className="sm:col-span-2 lg:col-span-4">{copyRowError}</Alert>
+                    <Alert variant="destructive" className="w-full py-2">{copyRowError}</Alert>
                   ) : null}
                 </div>
 
@@ -1483,8 +1530,11 @@ export function App() {
                           className={`absolute left-0 top-0 w-full border-b border-border/80 p-4 ${rowToneClass} ${levelRailClass(entry.level)}`}
                           style={{ transform: `translateY(${item.start}px)` }}
                         >
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Badge variant={levelVariant(entry.level)}>{entry.level}</Badge>
+                          <div
+                            className="flex flex-wrap items-center gap-2"
+                            title={`chars: ${messageSummary.charCount}, lines: ${messageSummary.lineCount}, format: ${formatted.isStructured ? 'json' : 'text'}${messageSummary.truncated ? ', preview' : ''}`}
+                          >
+                            <Badge variant={levelVariant(entry.level)} aria-label={`Level: ${entry.level}`}>{entry.level}</Badge>
                             <span className="text-xs text-muted-foreground">{formatTime(entry.timestamp)}</span>
                             <Badge variant="outline">chars: {messageSummary.charCount}</Badge>
                             <Badge variant="outline">lines: {messageSummary.lineCount}</Badge>
@@ -1494,7 +1544,7 @@ export function App() {
 
                           {/* Keep message panel high-contrast and monospace for long-line diagnostics readability. */}
                           <pre
-                            className={`font-mono-log mt-3 rounded-lg border border-slate-700/80 bg-slate-950 p-3 text-[12.5px] leading-5 text-slate-100 shadow-inner ${
+                            className={`font-mono-log log-surface mt-3 rounded-lg border border-border p-3 text-[12.5px] leading-5 shadow-inner ${
                               wrapLogLines ? 'whitespace-pre-wrap break-words' : 'whitespace-pre overflow-x-auto'
                             }`}
                           >
@@ -1519,33 +1569,43 @@ export function App() {
                             <Button size="sm" variant="outline" onClick={() => toggleRowExpanded(item.index)}>
                               {isExpanded ? 'Collapse details' : 'Expand details'}
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => copyRowMessage(item.index)}>
-                              {copiedRowIndex === item.index ? 'Copied' : 'Copy line'}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={rowActionMutation.isPending || !isRoomTargetReady}
-                              onClick={() => runRowAction('share', item.index)}
-                            >
-                              {activeActionKey === `share:${item.index}` ? 'Posting...' : 'Share to room'}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              disabled={rowActionMutation.isPending || !isRoomTargetReady}
-                              onClick={() => runRowAction('incident_draft', item.index)}
-                            >
-                              {activeActionKey === `incident_draft:${item.index}` ? 'Posting...' : 'Create incident draft'}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={rowActionMutation.isPending || !isRoomTargetReady || !isThreadTargetReady}
-                              onClick={() => runRowAction('thread_note', item.index)}
-                            >
-                              {activeActionKey === `thread_note:${item.index}` ? 'Posting...' : 'Add thread note'}
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="sm" variant="outline" aria-label="Row actions">
+                                  Actions
+                                  <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" aria-hidden />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start">
+                                <DropdownMenuItem
+                                  onSelect={() => copyRowMessage(item.index)}
+                                >
+                                  <Copy className="mr-2 h-4 w-4" aria-hidden />
+                                  {copiedRowIndex === item.index ? 'Copied' : 'Copy line'}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  disabled={rowActionMutation.isPending || !isRoomTargetReady}
+                                  onSelect={() => runRowAction('share', item.index)}
+                                >
+                                  <Share2 className="mr-2 h-4 w-4" aria-hidden />
+                                  {activeActionKey === `share:${item.index}` ? 'Posting...' : 'Share to room'}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  disabled={rowActionMutation.isPending || !isRoomTargetReady}
+                                  onSelect={() => runRowAction('incident_draft', item.index)}
+                                >
+                                  <FileText className="mr-2 h-4 w-4" aria-hidden />
+                                  {activeActionKey === `incident_draft:${item.index}` ? 'Posting...' : 'Create incident draft'}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  disabled={rowActionMutation.isPending || !isRoomTargetReady || !isThreadTargetReady}
+                                  onSelect={() => runRowAction('thread_note', item.index)}
+                                >
+                                  <MessageSquarePlus className="mr-2 h-4 w-4" aria-hidden />
+                                  {activeActionKey === `thread_note:${item.index}` ? 'Posting...' : 'Add thread note'}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </article>
                       );
@@ -1554,9 +1614,7 @@ export function App() {
                 </div>
               </>
             )}
-          </CardContent>
-        </Card>
       </div>
-    </main>
+    </AppShell>
   );
 }

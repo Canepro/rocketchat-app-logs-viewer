@@ -3,7 +3,11 @@ import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { App } from './App';
+import { initTheme } from './lib/theme';
 import './index.css';
+
+/** Apply theme before first paint to avoid flash (see web/docs/ARCHITECTURE.md §2). */
+initTheme();
 
 const queryClient = new QueryClient();
 

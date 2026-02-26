@@ -19,6 +19,9 @@
   --success-foreground: 0 0% 98%;
   --warning: 38 92% 50%;
   --warning-foreground: 0 0% 98%;
+  /* Log message surface: high-contrast monospace block (light theme) */
+  --log-surface-bg: 222 47% 11%;
+  --log-surface-fg: 210 40% 98%;
 }
 
 .dark {
@@ -34,6 +37,9 @@
   --destructive: 0 63% 51%;
   --success: 142 71% 45%;
   --warning: 38 92% 50%;
+  /* Log message surface (dark theme): slightly lighter than card for contrast */
+  --log-surface-bg: 222 47% 8%;
+  --log-surface-fg: 210 40% 98%;
 }
 
 * {
@@ -49,6 +55,12 @@ body {
 /* Log content: monospace for scanability */
 .font-mono-log {
   font-family: "IBM Plex Mono", "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+}
+
+/* Log message block: theme-aware high-contrast surface (uses --log-surface-* tokens) */
+.log-surface {
+  background-color: hsl(var(--log-surface-bg));
+  color: hsl(var(--log-surface-fg));
 }
 
 /* Subtle scrollbar styling keeps long-log navigation visible without visual noise. */

@@ -21,6 +21,8 @@ const config: Config = {
         'success-foreground': 'hsl(var(--success-foreground))',
         warning: 'hsl(var(--warning))',
         'warning-foreground': 'hsl(var(--warning-foreground))',
+        'log-surface': 'hsl(var(--log-surface-bg))',
+        'log-surface-foreground': 'hsl(var(--log-surface-fg))',
       },
       borderRadius: {
         lg: 'var(--radius)',
