@@ -72,6 +72,7 @@ const ENTRY_PREVIEW_MAX_LINES = 6;
 const ENTRY_PREVIEW_MAX_CHARS = 520;
 const ENTRY_LABELS_PREVIEW_COUNT = 6;
 const ENTRY_LABELS_EXPANDED_COUNT = 18;
+const COPY_ROW_FEEDBACK_MS = 2500;
 
 const parseQueryLevel = (value: string | null): QueryLevel | undefined => {
   if (!value) {
@@ -481,6 +482,7 @@ export function App() {
   }, [executeQuery, isPolling, pollIntervalSec, timeMode]);
 
   const entries = useMemo(() => logsMutation.data?.entries ?? [], [logsMutation.data?.entries]);
+  const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const parentRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
     count: entries.length,
@@ -499,6 +501,10 @@ export function App() {
   const copyRowMessage = useCallback(async (rowIndex: number) => {
     const entry = entries[rowIndex];
     if (!entry) {
+      if (copyResetTimerRef.current) {
+        clearTimeout(copyResetTimerRef.current);
+        copyResetTimerRef.current = null;
+      }
       setCopyRowError('Selected row is no longer available.');
       setCopiedRowIndex(null);
       return;
@@ -512,7 +518,19 @@ export function App() {
       await navigator.clipboard.writeText(entry.message);
       setCopiedRowIndex(rowIndex);
       setCopyRowError(null);
+      if (copyResetTimerRef.current) {
+        clearTimeout(copyResetTimerRef.current);
+      }
+      copyResetTimerRef.current = setTimeout(() => {
+        // Only clear the feedback badge for the same row this timer was created for.
+        setCopiedRowIndex((current) => (current === rowIndex ? null : current));
+        copyResetTimerRef.current = null;
+      }, COPY_ROW_FEEDBACK_MS);
     } catch (error) {
+      if (copyResetTimerRef.current) {
+        clearTimeout(copyResetTimerRef.current);
+        copyResetTimerRef.current = null;
+      }
       setCopiedRowIndex(null);
       setCopyRowError(error instanceof Error ? error.message : 'Unable to copy log line.');
     }
@@ -538,9 +556,20 @@ export function App() {
 
   useEffect(() => {
     setExpandedRows({});
+    if (copyResetTimerRef.current) {
+      clearTimeout(copyResetTimerRef.current);
+      copyResetTimerRef.current = null;
+    }
     setCopiedRowIndex(null);
     setCopyRowError(null);
   }, [entries]);
+
+  useEffect(() => () => {
+    if (copyResetTimerRef.current) {
+      clearTimeout(copyResetTimerRef.current);
+      copyResetTimerRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     // Virtual rows can change height when expanding rows or switching render mode.
