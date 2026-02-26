@@ -2,7 +2,7 @@
 
 End-user and operator guide for the current Logs Viewer app behavior.
 
-Last updated: 2026-02-25
+Last updated: 2026-02-26
 
 ## 1. What this app does
 
@@ -42,8 +42,8 @@ If this is your first use in a workspace:
 4. Validate private response behavior:
    - contextual bar opens privately
    - quick triage summary appears
-   - sample output preview appears (up to 20 lines)
-5. Click `Copy sample` for a private evidence block.
+   - sample output preview appears (up to 25 lines)
+5. Click `Show copy-ready sample` for a private evidence block.
 6. Click `Share sample` when you want room/thread-visible evidence for team triage.
 7. Click **Open Logs Viewer** for deeper filtering, saved views, and audit review.
 
@@ -73,6 +73,11 @@ Use slash command:
 - The app attempts to open a private contextual bar first.
 - If contextual-bar open is unavailable in the current client context, it falls back to a user-only notification containing the deep link.
 - The command does not post a room-visible message to channel/group/team contexts.
+- Room/thread-aware context intent:
+  - if `/logs` is executed in a room timeline, actions target that room
+  - if `/logs` is executed in a thread, actions target that same thread first
+  - if thread publish fails (deleted/mismatch), share falls back to the room timeline
+  - copy action is always private user-only output
 - The private response includes a quick triage summary:
   - source mode
   - requested time window
@@ -80,12 +85,20 @@ Use slash command:
   - top detected levels
   - top repeated signal lines
   - timestamped sample output lines:
-    - sidebar preview: up to 20 lines (truncated)
-    - copy/share actions: up to 50 lines
+    - sidebar preview: up to 25 lines (truncated), with additional chat-size cap when needed
+    - copy/share actions: up to 40 lines rendered in chat with `full_line_priority` mode (fewer lines, richer line text)
+    - action samples are resolved from a per-user persisted snapshot (compact button payload)
   - in `app_logs` mode, quick sample output is intentionally unavailable in slash response
 - The private slash card includes in-chat actions:
-  - `Copy sample`: sends a private copy-ready code block with sampled lines.
+  - `Show copy-ready sample`: sends a private copy-ready code block with sampled lines.
+    - Clipboard writes are not supported from Rocket.Chat Apps server-side actions; copy manually from the returned block.
+    - Render mode is `full_line_priority`: fewer lines are shown to preserve richer per-line evidence.
   - `Share sample`: posts sampled lines into the current room/thread and records a share audit entry.
+  - `Share elsewhere`: opens a private modal that lets you:
+    - choose target room by room ID or room name
+    - optionally provide a thread ID in that target room
+    - submit and post sampled lines with audit entry
+    - if thread publish fails, app falls back to room timeline
 
 ## 3.1 Fast-entry behavior (intentional)
 
@@ -133,7 +146,13 @@ The UI enforces basic client validation. Backend still enforces authoritative li
 ## Results panel
 
 - Results are virtualized for performance
-- Each row shows level, timestamp, message, and up to 6 labels
+- Each row shows level, timestamp, message metadata (`chars`, `lines`, format), and label chips
+- Message readability controls are available:
+  - `Message view`: `Pretty (JSON-aware)` or `Raw`
+  - `Wrap: on/off` for long-line scanning
+  - per-row `Expand details` / `Collapse details`
+  - per-row `Copy line`
+- Collapsed mode shows a bounded preview for scan speed; expanded mode shows full message + more labels
 - Redaction metadata is shown in query summary when applicable
 
 ## Row actions
@@ -239,24 +258,35 @@ The UI enforces basic client validation. Backend still enforces authoritative li
 
 ## Query works, but results are hard to read
 
-- Current v1 results view is functional but can be difficult for very large JSON-style lines.
-- Short-term workflow:
-  - reduce `limit` for focused review
-  - add `search` terms to narrow evidence
-  - use row actions (`share` / `incident_draft`) to move key lines into Rocket.Chat threads quickly.
-- UX improvements for expandable/pretty log detail view are tracked in the execution plan and drift register.
+- Use `Message view = Pretty (JSON-aware)` for structured JSON-style lines.
+- Use `Expand details` for full row body and full label visibility.
+- Use `Wrap: off` when scanning repeated prefixes in wide logs.
+- Use `Copy line` for private clipboard handoff before posting room-visible evidence.
 
 ## `Copy sample` / `Share sample` does not respond
 
 - Confirm app was re-uploaded after the latest build/package.
 - Confirm the app is enabled and `/logs` opens the private contextual bar.
 - Re-run `/logs` once to refresh interaction payload context, then retry buttons.
+- If you clicked an old slash card after long delay/restart, snapshot context may expire; rerun `/logs`.
 - Check Rocket.Chat app logs around click time for block-action handling entries (`executeBlockActionHandler` path).
+- If app logs show `error-message-size-exceeded`, upgrade to a build with chat-size-aware copy/share truncation and retry.
 - If still failing, collect:
   - workspace version
   - app version
   - timestamp
   - app logs around button click
+
+## `Share elsewhere` validation errors
+
+- `You do not have access to target room ...`:
+  - ensure you are a member of the target room
+  - if using room name, verify exact room display name/slug
+- `Thread ... was not found in room ...`:
+  - verify thread ID belongs to the target room
+  - clear thread ID for room-timeline sharing
+- `Share elsewhere request expired`:
+  - rerun `/logs` to generate a fresh private slash card, then retry
 
 ## Many lines show level `[unknown]`
 
@@ -269,8 +299,10 @@ The UI enforces basic client validation. Backend still enforces authoritative li
 ## In-chat output is too small or too noisy
 
 - Current behavior is intentional:
-  - sidebar preview: up to 20 lines
-  - copy/share payload: up to 50 lines
+  - sidebar preview: up to 25 lines
+  - preview can be lower when chat-size safety cap is hit
+  - copy/share output: up to 40 lines (full-line-priority)
+  - persisted slash snapshot: up to 80 lines for action reliability
 - Use `search` and `level` filters to raise signal before sharing evidence.
 - For deep analysis, switch to full viewer via **Open Logs Viewer**.
 
@@ -291,4 +323,3 @@ The UI enforces basic client validation. Backend still enforces authoritative li
 
 - No server-push stream endpoint yet (UI polling mode is available)
 - No export endpoint yet
-- Results readability for very large structured lines is baseline-only (expand/collapse and pretty/raw toggles are pending).

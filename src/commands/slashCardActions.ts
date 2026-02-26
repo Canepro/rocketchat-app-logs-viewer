@@ -3,6 +3,7 @@ export type QueryLevel = 'error' | 'warn' | 'info' | 'debug';
 export const SLASH_CARD_ACTION = {
     COPY_SAMPLE: 'logs_slash_copy_sample',
     SHARE_SAMPLE: 'logs_slash_share_sample',
+    SHARE_ELSEWHERE: 'logs_slash_share_elsewhere',
 } as const;
 
 type SlashCardActionId = (typeof SLASH_CARD_ACTION)[keyof typeof SLASH_CARD_ACTION];
@@ -21,6 +22,8 @@ export type SlashCardActionPayload = {
     windowLabel: string;
     filterSummary: string;
     preset: string;
+    snapshotId?: string;
+    sampleTotalCount?: number;
     sampleOutput: Array<SlashCardSampleLine>;
 };
 
@@ -30,12 +33,15 @@ const MAX_THREAD_ID_LENGTH = 128;
 const MAX_WINDOW_LABEL_LENGTH = 140;
 const MAX_FILTER_SUMMARY_LENGTH = 180;
 const MAX_PRESET_LENGTH = 40;
+const MAX_SNAPSHOT_ID_LENGTH = 80;
 const MAX_SAMPLE_LINES = 50;
 const MAX_SAMPLE_TEXT_LENGTH = 220;
 const LEVELS = new Set<QueryLevel | 'unknown'>(['error', 'warn', 'info', 'debug', 'unknown']);
 
 export const isSlashCardActionId = (value: string | undefined): value is SlashCardActionId =>
-    value === SLASH_CARD_ACTION.COPY_SAMPLE || value === SLASH_CARD_ACTION.SHARE_SAMPLE;
+    value === SLASH_CARD_ACTION.COPY_SAMPLE
+        || value === SLASH_CARD_ACTION.SHARE_SAMPLE
+        || value === SLASH_CARD_ACTION.SHARE_ELSEWHERE;
 
 export const encodeSlashCardActionPayload = (payload: SlashCardActionPayload): string =>
     // Keep button payload compact and opaque; handler re-validates every field after decode.
@@ -55,8 +61,20 @@ export const decodeSlashCardActionPayload = (raw: string | undefined): SlashCard
     }
 };
 
-export const formatSampleLines = (payload: SlashCardActionPayload): Array<string> =>
-    payload.sampleOutput.map((item) => `[${item.level}] ${item.text}`);
+export const formatSampleLines = (
+    payload: SlashCardActionPayload,
+    options?: { withIndex?: boolean; maxLines?: number },
+): Array<string> => {
+    const withIndex = options?.withIndex ?? false;
+    const safeMaxLines = typeof options?.maxLines === 'number' && Number.isFinite(options.maxLines)
+        ? Math.max(1, Math.floor(options.maxLines))
+        : payload.sampleOutput.length;
+
+    return payload.sampleOutput.slice(0, safeMaxLines).map((item, index) => {
+        const prefix = withIndex ? `${String(index + 1).padStart(2, '0')} ` : '';
+        return `${prefix}[${item.level}] ${item.text}`;
+    });
+};
 
 const sanitizePayload = (raw: Partial<SlashCardActionPayload>): SlashCardActionPayload | undefined => {
     // Version gate keeps backward compatibility when payload structure evolves.
@@ -70,6 +88,8 @@ const sanitizePayload = (raw: Partial<SlashCardActionPayload>): SlashCardActionP
     const windowLabel = sanitizeString(raw.windowLabel, MAX_WINDOW_LABEL_LENGTH);
     const filterSummary = sanitizeString(raw.filterSummary, MAX_FILTER_SUMMARY_LENGTH);
     const preset = sanitizeString(raw.preset, MAX_PRESET_LENGTH) || 'none';
+    const snapshotId = sanitizeString(raw.snapshotId, MAX_SNAPSHOT_ID_LENGTH) || undefined;
+    const sampleTotalCount = sanitizeSampleTotalCount(raw.sampleTotalCount);
 
     if (!roomId || !roomName || !sourceMode || !windowLabel || !filterSummary) {
         return undefined;
@@ -87,6 +107,8 @@ const sanitizePayload = (raw: Partial<SlashCardActionPayload>): SlashCardActionP
         windowLabel,
         filterSummary,
         preset,
+        snapshotId,
+        sampleTotalCount,
         sampleOutput,
     };
 };
@@ -124,4 +146,13 @@ const sanitizeString = (value: unknown, maxLength: number): string => {
     }
 
     return value.replace(/\s+/g, ' ').trim().slice(0, maxLength);
+};
+
+const sanitizeSampleTotalCount = (value: unknown): number | undefined => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+        return undefined;
+    }
+
+    return Math.floor(parsed);
 };

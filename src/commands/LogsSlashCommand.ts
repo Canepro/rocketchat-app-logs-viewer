@@ -11,6 +11,7 @@ import {
     SLASH_CARD_ACTION,
     SlashCardActionPayload,
 } from './slashCardActions';
+import { createSlashCardSampleSnapshot } from './slashCardSampleStore';
 
 type PresetName = 'incident' | 'webhook-errors' | 'auth-failures';
 
@@ -25,6 +26,7 @@ type SummaryEntry = {
     level: QueryLevel | 'unknown';
     signal: string;
     preview: string;
+    lineText: string;
     timestamp?: string;
 };
 
@@ -53,9 +55,14 @@ type ParsedCommandArgs = {
 };
 
 const ALLOWED_LEVELS = new Set<QueryLevel>(['error', 'warn', 'info', 'debug']);
-const QUICK_SAMPLE_OUTPUT_MAX_LINES = 50;
-const QUICK_SAMPLE_OUTPUT_PREVIEW_LINES = 20;
+const QUICK_SAMPLE_OUTPUT_MAX_LINES = 80;
+const QUICK_SAMPLE_OUTPUT_PREVIEW_LINES = 25;
+const QUICK_SAMPLE_OUTPUT_PREVIEW_CHAR_BUDGET = 1800;
+const QUICK_SAMPLE_OUTPUT_FALLBACK_LINES = 8;
+const QUICK_SAMPLE_OUTPUT_LINE_TEXT_MAX = 2400;
+const QUICK_SAMPLE_OUTPUT_INLINE_FALLBACK_TEXT_MAX = 220;
 const DURATION_PATTERN = /^\d+\s*[smhdw]$/i;
+const CODE_FENCE = '```';
 const PRESETS: Record<PresetName, PresetDefinition> = {
     incident: {
         since: '30m',
@@ -86,7 +93,7 @@ export class LogsSlashCommand implements ISlashCommand {
 
     constructor(private readonly appId: string) {}
 
-    public async executor(context: SlashCommandContext, read: IRead, modify: IModify, _http: IHttp, _persis: IPersistence): Promise<void> {
+    public async executor(context: SlashCommandContext, read: IRead, modify: IModify, _http: IHttp, persistence: IPersistence): Promise<void> {
         // Slash commands post through the app bot user; bail out if the app user cannot be resolved.
         const appUser = await read.getUserReader().getAppUser(this.appId);
         if (!appUser) {
@@ -160,7 +167,18 @@ export class LogsSlashCommand implements ISlashCommand {
         const triggerId = context.getTriggerId();
         if (triggerId) {
             try {
-                await this.openPrivateContextualBar(context, modify, deepLink, roomName, filterSummary, parsed.preset || 'none', triageSummary, parsed.warnings);
+                await this.openPrivateContextualBar(
+                    context,
+                    read,
+                    modify,
+                    persistence,
+                    deepLink,
+                    roomName,
+                    filterSummary,
+                    parsed.preset || 'none',
+                    triageSummary,
+                    parsed.warnings,
+                );
                 return;
             } catch {
                 // Trigger IDs can expire; fall back to user-only notification so the command still succeeds privately.
@@ -181,7 +199,9 @@ export class LogsSlashCommand implements ISlashCommand {
 
     private async openPrivateContextualBar(
         context: SlashCommandContext,
+        read: IRead,
         modify: IModify,
+        persistence: IPersistence,
         deepLink: string,
         roomName: string,
         filterSummary: string,
@@ -195,7 +215,15 @@ export class LogsSlashCommand implements ISlashCommand {
         }
 
         const blocks = modify.getCreator().getBlockBuilder();
-        const actionPayload = this.buildSlashCardActionPayload(context, roomName, filterSummary, preset, triageSummary);
+        const actionPayload = await this.buildSlashCardActionPayload(
+            context,
+            read,
+            persistence,
+            roomName,
+            filterSummary,
+            preset,
+            triageSummary,
+        );
         const encodedActionPayload = encodeSlashCardActionPayload(actionPayload);
 
         blocks.addSectionBlock({
@@ -213,12 +241,18 @@ export class LogsSlashCommand implements ISlashCommand {
             elements: [
                 blocks.newButtonElement({
                     actionId: SLASH_CARD_ACTION.COPY_SAMPLE,
-                    text: blocks.newPlainTextObject('Copy sample'),
+                    // This action returns a private copy-ready block; clipboard write is not possible server-side.
+                    text: blocks.newPlainTextObject('Show copy-ready sample'),
                     value: encodedActionPayload,
                 }),
                 blocks.newButtonElement({
                     actionId: SLASH_CARD_ACTION.SHARE_SAMPLE,
                     text: blocks.newPlainTextObject('Share sample'),
+                    value: encodedActionPayload,
+                }),
+                blocks.newButtonElement({
+                    actionId: SLASH_CARD_ACTION.SHARE_ELSEWHERE,
+                    text: blocks.newPlainTextObject('Share elsewhere'),
                     value: encodedActionPayload,
                 }),
             ],
@@ -252,14 +286,24 @@ export class LogsSlashCommand implements ISlashCommand {
         );
     }
 
-    private buildSlashCardActionPayload(
+    private async buildSlashCardActionPayload(
         context: SlashCommandContext,
+        read: IRead,
+        persistence: IPersistence,
         roomName: string,
         filterSummary: string,
         preset: string,
         triageSummary: QuickTriageSummary,
-    ): SlashCardActionPayload {
-        return {
+    ): Promise<SlashCardActionPayload> {
+        const sampleOutput = triageSummary.sampleOutput.slice(0, QUICK_SAMPLE_OUTPUT_MAX_LINES);
+        // Keep action payload compact for button reliability; rich lines are loaded from persisted snapshot.
+        const inlineFallbackSample = sampleOutput
+            .slice(0, QUICK_SAMPLE_OUTPUT_FALLBACK_LINES)
+            .map((line) => ({
+                ...line,
+                text: this.compactText(line.text, QUICK_SAMPLE_OUTPUT_INLINE_FALLBACK_TEXT_MAX),
+            }));
+        const payload: SlashCardActionPayload = {
             version: 1,
             roomId: context.getRoom().id,
             roomName,
@@ -268,8 +312,40 @@ export class LogsSlashCommand implements ISlashCommand {
             windowLabel: triageSummary.windowLabel,
             filterSummary,
             preset,
-            sampleOutput: triageSummary.sampleOutput.slice(0, QUICK_SAMPLE_OUTPUT_MAX_LINES),
+            sampleTotalCount: triageSummary.sampleLineCount ?? sampleOutput.length,
+            // Keep a tiny inline fallback so old cards still have minimal evidence if snapshot lookup fails.
+            sampleOutput: inlineFallbackSample,
         };
+
+        if (sampleOutput.length === 0) {
+            return payload;
+        }
+
+        if (typeof persistence?.updateByAssociation === 'function') {
+            try {
+                const snapshotId = await createSlashCardSampleSnapshot(read, persistence, {
+                    ownerUserId: context.getSender().id,
+                    roomId: payload.roomId,
+                    roomName: payload.roomName,
+                    threadId: payload.threadId,
+                    sourceMode: payload.sourceMode,
+                    windowLabel: payload.windowLabel,
+                    filterSummary: payload.filterSummary,
+                    preset: payload.preset,
+                    sampleOutput,
+                    sampleTotalCount: payload.sampleTotalCount || sampleOutput.length,
+                });
+                if (snapshotId) {
+                    payload.snapshotId = snapshotId;
+                    return payload;
+                }
+            } catch {
+                // Best-effort snapshot persistence; action handler falls back to inline payload samples.
+            }
+        }
+
+        payload.sampleOutput = inlineFallbackSample;
+        return payload;
     }
 
     private async notifyPrivateOnly(
@@ -302,26 +378,48 @@ export class LogsSlashCommand implements ISlashCommand {
             ? summary.topSignals.map((item) => `\`${item.text}\` (${item.count})`).join(', ')
             : 'n/a';
         const samplePreview = summary.sampleOutput.slice(0, QUICK_SAMPLE_OUTPUT_PREVIEW_LINES);
-        const sampleOutputLines = samplePreview.length > 0
-            ? ['- Sample output preview:', ...samplePreview.map((item) => `  - [${item.level}] ${item.text}`)]
-            : ['- Sample output: n/a'];
-        const previewNote = summary.sampleOutput.length > QUICK_SAMPLE_OUTPUT_PREVIEW_LINES
-            ? `- Preview lines: showing ${samplePreview.length} of ${summary.sampleOutput.length} sampled lines`
-            : '';
+        const sampleOutputLines = this.buildBoundedPreviewLines(samplePreview);
+        const previewTruncatedForSize = sampleOutputLines.length < samplePreview.length;
+        const previewMeta = samplePreview.length > 0
+            ? `showing ${sampleOutputLines.length}/${summary.sampleOutput.length} sampled lines${previewTruncatedForSize ? ' (chat-size cap)' : ''}`
+            : 'n/a';
 
         return [
             '*Quick triage summary*',
-            `- Source: \`${summary.sourceMode}\``,
-            `- Window: ${summary.windowLabel}`,
-            `- Sample lines: ${summary.sampleLineCount ?? 0} (cap ${summary.sampleLimit})`,
-            `- Top levels: ${levelLine}`,
-            `- Top signals: ${signalLine}`,
-            previewNote,
-            ...sampleOutputLines,
+            `Source: \`${summary.sourceMode}\``,
+            `Window: ${summary.windowLabel}`,
+            `Sample lines: ${summary.sampleLineCount ?? 0} (cap ${summary.sampleLimit})`,
+            `Top levels: ${levelLine}`,
+            `Top signals: ${signalLine}`,
+            `Sample preview: ${previewMeta}`,
+            sampleOutputLines.length > 0 ? `Sample output:\n${CODE_FENCE}\n${sampleOutputLines.join('\n')}\n${CODE_FENCE}` : 'Sample output: n/a',
             summary.note ? `- Note: ${summary.note}` : '',
         ]
             .filter(Boolean)
             .join('\n');
+    }
+
+    private buildBoundedPreviewLines(samplePreview: Array<{ level: QueryLevel | 'unknown'; text: string }>): Array<string> {
+        const lines: Array<string> = [];
+        let usedChars = 0;
+
+        for (let index = 0; index < samplePreview.length; index += 1) {
+            const entry = samplePreview[index];
+            const line = `${String(index + 1).padStart(2, '0')} [${entry.level}] ${entry.text}`;
+            const nextUsedChars = usedChars + line.length + 1;
+            if (nextUsedChars > QUICK_SAMPLE_OUTPUT_PREVIEW_CHAR_BUDGET) {
+                if (lines.length === 0) {
+                    const maxChars = Math.max(16, QUICK_SAMPLE_OUTPUT_PREVIEW_CHAR_BUDGET - 3);
+                    lines.push(`${line.slice(0, maxChars)}...`);
+                }
+                break;
+            }
+
+            lines.push(line);
+            usedChars = nextUsedChars;
+        }
+
+        return lines;
     }
 
     private formatSummaryForPrivateText(summary: QuickTriageSummary): Array<string> {
@@ -444,7 +542,7 @@ export class LogsSlashCommand implements ISlashCommand {
             // Expose only a small evidence window in chat; deeper inspection stays in full UI.
             const sampleOutput = entries.slice(0, QUICK_SAMPLE_OUTPUT_MAX_LINES).map((entry) => ({
                 level: entry.level,
-                text: `${entry.timestamp ? `${entry.timestamp} ` : ''}${entry.preview}`,
+                text: `${entry.timestamp ? `${entry.timestamp} ` : ''}${entry.lineText}`,
             }));
 
             return {
@@ -578,6 +676,7 @@ export class LogsSlashCommand implements ISlashCommand {
                     level,
                     signal: this.extractSignalText(message),
                     preview: this.extractPreviewText(message),
+                    lineText: this.extractSampleLineText(message),
                     timestamp,
                 });
             }
@@ -739,6 +838,16 @@ export class LogsSlashCommand implements ISlashCommand {
         }
 
         return this.compactText(compact, 160);
+    }
+
+    private extractSampleLineText(message: string): string {
+        const compact = message.replace(/\s+/g, ' ').trim();
+        if (!compact) {
+            return '[empty]';
+        }
+
+        // Slash copy/share should preserve richer evidence than the compact sidebar preview.
+        return this.compactText(compact, QUICK_SAMPLE_OUTPUT_LINE_TEXT_MAX);
     }
 
     private compactSignal(value: string): string {

@@ -68,6 +68,11 @@ const inputBaseClass =
 const selectBaseClass = `${inputBaseClass} pr-8`;
 
 const labelClass = 'text-xs font-medium uppercase tracking-wide text-muted-foreground';
+const ENTRY_PREVIEW_MAX_LINES = 6;
+const ENTRY_PREVIEW_MAX_CHARS = 520;
+const ENTRY_LABELS_PREVIEW_COUNT = 6;
+const ENTRY_LABELS_EXPANDED_COUNT = 18;
+const COPY_ROW_FEEDBACK_MS = 2500;
 
 const parseQueryLevel = (value: string | null): QueryLevel | undefined => {
   if (!value) {
@@ -179,6 +184,59 @@ const formatErrorDetails = (details: unknown): string | null => {
   }
 };
 
+const formatMessageForDisplay = (message: string, mode: 'raw' | 'pretty'): { text: string; isStructured: boolean } => {
+  if (mode === 'raw') {
+    return { text: message, isStructured: false };
+  }
+
+  const trimmed = message.trim();
+  if (!trimmed || (trimmed[0] !== '{' && trimmed[0] !== '[')) {
+    return { text: message, isStructured: false };
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    return {
+      text: JSON.stringify(parsed, null, 2),
+      isStructured: true,
+    };
+  } catch {
+    return { text: message, isStructured: false };
+  }
+};
+
+const summarizeRenderedMessage = (message: string, expanded: boolean): {
+  rendered: string;
+  truncated: boolean;
+  lineCount: number;
+  charCount: number;
+} => {
+  const lineCount = message.length === 0 ? 0 : message.split('\n').length;
+  const charCount = message.length;
+  if (expanded || (lineCount <= ENTRY_PREVIEW_MAX_LINES && charCount <= ENTRY_PREVIEW_MAX_CHARS)) {
+    return {
+      rendered: message,
+      truncated: false,
+      lineCount,
+      charCount,
+    };
+  }
+
+  const maxChars = Math.max(16, ENTRY_PREVIEW_MAX_CHARS - 3);
+  const compact = message.length > maxChars ? `${message.slice(0, maxChars)}...` : message;
+  const lines = compact.split('\n');
+  const rendered = lines.length > ENTRY_PREVIEW_MAX_LINES
+    ? `${lines.slice(0, ENTRY_PREVIEW_MAX_LINES).join('\n')}\n...`
+    : compact;
+
+  return {
+    rendered,
+    truncated: rendered !== message,
+    lineCount,
+    charCount,
+  };
+};
+
 export function App() {
   const runtime = useMemo(() => getRuntimeConnection(), []);
   const prefill = useMemo(readPrefillFromLocation, []);
@@ -195,6 +253,11 @@ export function App() {
   const [isPolling, setIsPolling] = useState(false);
   const [pollingError, setPollingError] = useState<string | null>(null);
   const [pollingTickCount, setPollingTickCount] = useState(0);
+  const [messageViewMode, setMessageViewMode] = useState<'raw' | 'pretty'>('pretty');
+  const [wrapLogLines, setWrapLogLines] = useState(true);
+  const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
+  const [copiedRowIndex, setCopiedRowIndex] = useState<number | null>(null);
+  const [copyRowError, setCopyRowError] = useState<string | null>(null);
 
   const [auditUserId, setAuditUserId] = useState(prefill.context.senderId || '');
   const [auditOutcome, setAuditOutcome] = useState<AuditOutcome | ''>('');
@@ -418,14 +481,60 @@ export function App() {
     };
   }, [executeQuery, isPolling, pollIntervalSec, timeMode]);
 
-  const entries = logsMutation.data?.entries || [];
+  const entries = useMemo(() => logsMutation.data?.entries ?? [], [logsMutation.data?.entries]);
+  const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const parentRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
     count: entries.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 96,
+    estimateSize: () => 132,
     overscan: 8,
   });
+
+  const toggleRowExpanded = useCallback((rowIndex: number) => {
+    setExpandedRows((current) => ({
+      ...current,
+      [rowIndex]: !current[rowIndex],
+    }));
+  }, []);
+
+  const copyRowMessage = useCallback(async (rowIndex: number) => {
+    const entry = entries[rowIndex];
+    if (!entry) {
+      if (copyResetTimerRef.current) {
+        clearTimeout(copyResetTimerRef.current);
+        copyResetTimerRef.current = null;
+      }
+      setCopyRowError('Selected row is no longer available.');
+      setCopiedRowIndex(null);
+      return;
+    }
+
+    try {
+      if (!navigator?.clipboard?.writeText) {
+        throw new Error('Clipboard API unavailable in this browser context.');
+      }
+
+      await navigator.clipboard.writeText(entry.message);
+      setCopiedRowIndex(rowIndex);
+      setCopyRowError(null);
+      if (copyResetTimerRef.current) {
+        clearTimeout(copyResetTimerRef.current);
+      }
+      copyResetTimerRef.current = setTimeout(() => {
+        // Only clear the feedback badge for the same row this timer was created for.
+        setCopiedRowIndex((current) => (current === rowIndex ? null : current));
+        copyResetTimerRef.current = null;
+      }, COPY_ROW_FEEDBACK_MS);
+    } catch (error) {
+      if (copyResetTimerRef.current) {
+        clearTimeout(copyResetTimerRef.current);
+        copyResetTimerRef.current = null;
+      }
+      setCopiedRowIndex(null);
+      setCopyRowError(error instanceof Error ? error.message : 'Unable to copy log line.');
+    }
+  }, [entries]);
 
   const queryError = logsMutation.error;
   const auditError = auditQuery.error;
@@ -443,6 +552,30 @@ export function App() {
   const selectedRoomTarget = availableRoomTargets.find((target) => target.id === normalizedActionRoomId);
   const selectedThreadTarget = availableThreadTargets.find((target) => target.id === normalizedActionThreadId);
   const selectedSavedView = availableSavedViews.find((view) => view.id === selectedSavedViewId);
+  const expandedRowCount = Object.values(expandedRows).filter(Boolean).length;
+
+  useEffect(() => {
+    setExpandedRows({});
+    if (copyResetTimerRef.current) {
+      clearTimeout(copyResetTimerRef.current);
+      copyResetTimerRef.current = null;
+    }
+    setCopiedRowIndex(null);
+    setCopyRowError(null);
+  }, [entries]);
+
+  useEffect(() => () => {
+    if (copyResetTimerRef.current) {
+      clearTimeout(copyResetTimerRef.current);
+      copyResetTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    // Virtual rows can change height when expanding rows or switching render mode.
+    // Force a re-measure so rows do not overlap after UI-state changes.
+    virtualizer.measure();
+  }, [expandedRows, messageViewMode, virtualizer, wrapLogLines]);
 
   useEffect(() => {
     if (!selectedSavedViewId) {
@@ -1296,61 +1429,131 @@ export function App() {
             {entries.length === 0 ? (
               <p className="text-sm text-muted-foreground">No results yet. Run a query to load logs.</p>
             ) : (
-              <div ref={parentRef} className="h-[560px] overflow-auto rounded-md border">
-                <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
-                  {virtualizer.getVirtualItems().map((item) => {
-                    const entry = entries[item.index];
-                    return (
-                      <article
-                        key={`${entry.timestamp}-${item.index}`}
-                        className="absolute left-0 top-0 w-full border-b bg-background p-3"
-                        style={{ transform: `translateY(${item.start}px)` }}
-                      >
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant={levelVariant(entry.level)}>{entry.level}</Badge>
-                          <span className="text-xs text-muted-foreground">{formatTime(entry.timestamp)}</span>
-                        </div>
-                        <pre className="mt-2 whitespace-pre-wrap break-words text-xs">{entry.message}</pre>
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {Object.entries(entry.labels)
-                            .slice(0, 6)
-                            .map(([key, value]) => (
+              <>
+                <div className="mb-3 grid gap-3 rounded-md border p-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <label className="space-y-1">
+                    <span className={labelClass}>Message view</span>
+                    <select
+                      className={selectBaseClass}
+                      value={messageViewMode}
+                      onChange={(event) => setMessageViewMode(event.target.value as 'raw' | 'pretty')}
+                    >
+                      <option value="pretty">Pretty (JSON-aware)</option>
+                      <option value="raw">Raw</option>
+                    </select>
+                  </label>
+                  <div className="flex items-end">
+                    <Button size="sm" variant={wrapLogLines ? 'secondary' : 'outline'} onClick={() => setWrapLogLines((value) => !value)}>
+                      {wrapLogLines ? 'Wrap: on' : 'Wrap: off'}
+                    </Button>
+                  </div>
+                  <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={expandedRowCount === 0}
+                      onClick={() => setExpandedRows({})}
+                    >
+                      Collapse all
+                    </Button>
+                    <Badge variant="outline">rows: {entries.length}</Badge>
+                    <Badge variant="outline">expanded: {expandedRowCount}</Badge>
+                  </div>
+                  {copyRowError ? (
+                    <p className="text-sm text-red-600 sm:col-span-2 lg:col-span-4">{copyRowError}</p>
+                  ) : null}
+                </div>
+
+                <div ref={parentRef} className="h-[560px] overflow-auto rounded-md border">
+                  <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
+                    {virtualizer.getVirtualItems().map((item) => {
+                      const entry = entries[item.index];
+                      const isExpanded = Boolean(expandedRows[item.index]);
+                      const formatted = formatMessageForDisplay(entry.message, messageViewMode);
+                      const messageSummary = summarizeRenderedMessage(formatted.text, isExpanded);
+                      const visibleLabels = Object.entries(entry.labels).slice(
+                        0,
+                        isExpanded ? ENTRY_LABELS_EXPANDED_COUNT : ENTRY_LABELS_PREVIEW_COUNT,
+                      );
+                      const hasMoreLabels = Object.keys(entry.labels).length > visibleLabels.length;
+
+                      return (
+                        <article
+                          key={`${entry.timestamp}-${item.index}`}
+                          data-index={item.index}
+                          ref={(node) => {
+                            if (node) {
+                              // Measure each row after render to support mixed row heights.
+                              virtualizer.measureElement(node);
+                            }
+                          }}
+                          className="absolute left-0 top-0 w-full border-b bg-background p-3"
+                          style={{ transform: `translateY(${item.start}px)` }}
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant={levelVariant(entry.level)}>{entry.level}</Badge>
+                            <span className="text-xs text-muted-foreground">{formatTime(entry.timestamp)}</span>
+                            <Badge variant="outline">chars: {messageSummary.charCount}</Badge>
+                            <Badge variant="outline">lines: {messageSummary.lineCount}</Badge>
+                            <Badge variant="outline">format: {formatted.isStructured ? 'json' : 'text'}</Badge>
+                            {messageSummary.truncated ? <Badge variant="secondary">preview</Badge> : null}
+                          </div>
+
+                          <pre
+                            className={`mt-2 rounded-md border bg-muted/20 p-2 text-xs ${
+                              wrapLogLines ? 'whitespace-pre-wrap break-words' : 'whitespace-pre overflow-x-auto'
+                            }`}
+                          >
+                            {messageSummary.rendered}
+                          </pre>
+
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {visibleLabels.map(([key, value]) => (
                               <Badge key={`${key}-${value}`} variant="outline" className="font-normal">
                                 {key}={value}
                               </Badge>
                             ))}
-                        </div>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={rowActionMutation.isPending || !isRoomTargetReady}
-                            onClick={() => runRowAction('share', item.index)}
-                          >
-                            {activeActionKey === `share:${item.index}` ? 'Posting...' : 'Share to room'}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            disabled={rowActionMutation.isPending || !isRoomTargetReady}
-                            onClick={() => runRowAction('incident_draft', item.index)}
-                          >
-                            {activeActionKey === `incident_draft:${item.index}` ? 'Posting...' : 'Create incident draft'}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={rowActionMutation.isPending || !isRoomTargetReady || !isThreadTargetReady}
-                            onClick={() => runRowAction('thread_note', item.index)}
-                          >
-                            {activeActionKey === `thread_note:${item.index}` ? 'Posting...' : 'Add thread note'}
-                          </Button>
-                        </div>
-                      </article>
-                    );
-                  })}
+                            {hasMoreLabels ? <Badge variant="outline">+{Object.keys(entry.labels).length - visibleLabels.length} labels</Badge> : null}
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Button size="sm" variant="outline" onClick={() => toggleRowExpanded(item.index)}>
+                              {isExpanded ? 'Collapse details' : 'Expand details'}
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => copyRowMessage(item.index)}>
+                              {copiedRowIndex === item.index ? 'Copied' : 'Copy line'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={rowActionMutation.isPending || !isRoomTargetReady}
+                              onClick={() => runRowAction('share', item.index)}
+                            >
+                              {activeActionKey === `share:${item.index}` ? 'Posting...' : 'Share to room'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              disabled={rowActionMutation.isPending || !isRoomTargetReady}
+                              onClick={() => runRowAction('incident_draft', item.index)}
+                            >
+                              {activeActionKey === `incident_draft:${item.index}` ? 'Posting...' : 'Create incident draft'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={rowActionMutation.isPending || !isRoomTargetReady || !isThreadTargetReady}
+                              onClick={() => runRowAction('thread_note', item.index)}
+                            >
+                              {activeActionKey === `thread_note:${item.index}` ? 'Posting...' : 'Add thread note'}
+                            </Button>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </CardContent>
         </Card>

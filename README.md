@@ -41,6 +41,7 @@ This repository now includes a first implementation scaffold:
   - `web/` Vite app with Tailwind and shadcn-style UI primitives
   - wired app API client (`/config`, `/query`, `/audit`, `/targets`, `/threads`, `/views`, `/actions`)
   - virtualized log results rendering for large payloads
+  - deep-inspection controls for results (pretty/raw message view, wrap toggle, expand/collapse, copy line)
   - build output configured for `resources/web/`
 
 `POST /query` now supports feature-flagged source modes:
@@ -72,7 +73,7 @@ Local dev auth modes:
 - Token mode (recommended for localhost): set `VITE_ROCKETCHAT_USER_ID` and `VITE_ROCKETCHAT_AUTH_TOKEN`; browser stays same-origin and Vite proxy forwards authenticated calls without CORS dependency.
 
 App API path resolution behavior:
-- Default candidate order is public first, then private fallback: `/api/apps/public/<appId>` -> `/api/apps/private/<appId>`.
+- Default candidate order is private first, then public fallback: `/api/apps/private/<appId>` -> `/api/apps/public/<appId>`.
 - On `404`, the client retries the next candidate automatically.
 - If `VITE_ROCKETCHAT_APP_API_BASE_PATH` is set, it is tried first, then built-in fallbacks.
 
@@ -92,11 +93,15 @@ Slash response visibility behavior:
 - Fallback path uses user-only notification if contextual-bar open is unavailable.
 - The command does not post a room-visible message in channel/group/team contexts.
 - The private response includes a quick triage summary (source mode, window, sampled line count, top levels, top signals, and bounded timestamped sample output lines).
-- Sidebar preview shows up to 20 sampled lines (truncated for readability); `Copy sample` and `Share sample` can carry up to 50 sampled lines.
+- Sidebar preview shows up to 25 sampled lines (truncated for scan speed), and may be further reduced by a chat-size safety cap.
+- `Copy sample` and `Share sample` render up to 40 sampled lines in chat using full-line-priority mode (fewer lines, richer line text).
+- Slash-card actions are snapshot-backed (persisted per user) to avoid large button payload failures.
 - In `app_logs` source mode, quick sample output is intentionally unavailable in slash response; use Open Logs Viewer for full query.
 - In-chat-first actions are available directly in the private slash card:
-  - `Copy sample`: sends a private copy-ready block of sampled lines.
+  - `Show copy-ready sample`: sends a private copy-ready block of sampled lines.
+    - Rocket.Chat Apps cannot write to the local OS clipboard directly; users copy from the returned block.
   - `Share sample`: posts sampled lines into the current room/thread with audit logging.
+  - `Share elsewhere`: opens a private modal to share sampled lines to another room (ID or name) the user can access, with optional thread ID and audit logging.
 
 New workspace quickstart (operator + first user):
 
@@ -110,7 +115,7 @@ New workspace quickstart (operator + first user):
 3. Open any channel/DM and run `/logs`.
 4. Validate private in-chat behavior:
    - you should see a private contextual bar response
-   - preview should show up to 20 sampled lines
+   - preview should show up to 25 sampled lines
    - `Copy sample` (private) and `Share sample` (room/thread) should work
 5. Use **Open Logs Viewer** for deeper inspection, saved views, and row actions.
 
@@ -154,6 +159,9 @@ For implementation details and next steps, see:
 - **[docs/RELEASE_WORKFLOW.md](./docs/RELEASE_WORKFLOW.md)** — versioning, changelog, package validation, and release evidence workflow.
 - **[docs/VERSION_TRACKER.md](./docs/VERSION_TRACKER.md)** — release version baseline, feature-to-version mapping, and next-version recommendation.
 - **[docs/GITHUB_PUSH_PLAN.md](./docs/GITHUB_PUSH_PLAN.md)** — branch/commit/PR/tag checklist for clean repository publishing.
+- **[docs/SMOKE_CHECKLIST_4PM.md](./docs/SMOKE_CHECKLIST_4PM.md)** — live post-start validation run-sheet for cluster smoke.
+- **[docs/RELEASE_NOTES_v0.1.1_DRAFT.md](./docs/RELEASE_NOTES_v0.1.1_DRAFT.md)** — draft release notes and acceptance criteria for next cut.
+- **[docs/PR_DESCRIPTION_v0.1.1_DRAFT.md](./docs/PR_DESCRIPTION_v0.1.1_DRAFT.md)** — prepared PR body template for review/submission.
 - **[CHANGELOG.md](./CHANGELOG.md)** — release history and unreleased change tracking.
 - **[docs/RBAC_REVIEW.md](./docs/RBAC_REVIEW.md)** — permission-mode hardening review and failure-mode matrix.
 - **[docs/EXECUTION_PLAN.md](./docs/EXECUTION_PLAN.md)** — enterprise delivery phases, quality gates, and definition-of-done.

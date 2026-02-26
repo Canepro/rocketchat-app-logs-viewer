@@ -49,8 +49,9 @@ This file documents the current scaffold and implemented backend behavior.
     - fallback path sends user-only notification with deep link and visibility notice.
   - Private slash response includes quick triage summary metadata plus timestamped sample output lines (bounded and truncated).
   - Current sample behavior:
-    - sidebar preview up to 20 lines
-    - action payload for copy/share up to 50 lines
+    - sidebar preview up to 25 lines (plus chat-size cap)
+    - copy/share chat output up to 60 lines
+    - persisted sample snapshot storage up to 80 lines (used by slash-card actions)
   - Includes numeric severity fallback mapping for common JSON numeric levels.
   - Private slash card includes in-chat action buttons:
     - `Copy sample` -> private copy-ready evidence block
@@ -58,11 +59,15 @@ This file documents the current scaffold and implemented backend behavior.
 - `src/commands/slashCardActions.ts`
   - Encodes/decodes slash-card button payloads with strict sanitization and bounds.
   - Centralizes action IDs and sample line payload limits.
+- `src/commands/slashCardSampleStore.ts`
+  - Persists per-user slash-card sample snapshots and returns compact snapshot IDs for button action payloads.
+  - Keeps bounded snapshot retention and per-user entry cap to avoid unbounded persistence growth.
 - `src/commands/slashCardActionHandler.ts`
   - Handles UIKit block-action callbacks for slash-card buttons.
   - Re-validates role authorization at click time.
   - Resolves user/room context server-side for safer cross-client behavior.
-  - Emits private copy response and audited in-room share action.
+  - Resolves snapshot-backed sample payloads per actor for reliable copy/share actions.
+  - Emits private copy response and audited in-room share action with explicit sampled-line count metadata.
 - `src/api/index.ts`
   - API registry builder for app API.
 - `src/api/logs/queryValidation.ts`
@@ -104,12 +109,19 @@ This file documents the current scaffold and implemented backend behavior.
   - Consumes deep-link query params (`preset`, room/thread context, filters) for prefill and optional autorun flow.
   - Includes row actions on each result (`Share to room`, `Create incident draft`, `Add thread note`) targeting configured room/thread IDs.
   - Includes row-action UX hardening: slash-context target quick-fill controls, readiness badges, action-specific disable states, and audit auto-refresh on successful action posting.
+  - Includes query-result readability controls for large/structured lines:
+    - pretty/raw message rendering mode
+    - wrap on/off toggle
+    - per-row expand/collapse
+    - per-row copy line
+    - row metadata badges (line/char counts, structured detection, preview marker)
   - Includes room-scoped thread discovery UX (`/threads`) with searchable thread quick-selection.
   - Includes saved views workflow (`/views`) with create/apply/update/delete controls.
   - Includes near-real-time polling controls with safe interval clamp and start/stop behavior.
 - `web/src/lib/api.ts`
   - Typed app API client for `/config`, `/query`, `/audit`, `/targets`, `/threads`, `/views`, and `/actions`.
   - Centralizes credentials, error normalization, and runtime API path resolution.
+  - Uses private-first API candidate ordering with public fallback on `404` to reduce probe-noise in private-app workflows.
 - `web/src/components/ui/*`
   - Basic shadcn-style UI primitives (`button`, `badge`, `card`).
 - `web/vite.config.ts`

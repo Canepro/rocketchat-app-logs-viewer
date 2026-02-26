@@ -2,7 +2,7 @@
 
 Enterprise-grade delivery plan for v1 hardening and controlled feature expansion.
 
-Last updated: 2026-02-25
+Last updated: 2026-02-26
 
 ## 1. Objectives
 
@@ -146,7 +146,7 @@ Definition of done:
 
 ## 6. Phase status snapshot
 
-As of 2026-02-25:
+As of 2026-02-26:
 
 - Phase 1 completed:
   - API contract document (`docs/API_CONTRACT.md`)
@@ -172,16 +172,19 @@ As of 2026-02-25:
       - in-chat action buttons (`Copy sample`, `Share sample`)
       - share-from-slash audit path
       - interaction reliability hardening via server-side user/room resolution
-      - sample sizing policy: preview up to 20, copy/share payload up to 50
+      - sample sizing policy: preview up to 25, copy/share chat output up to 60
+      - per-user snapshot-backed slash actions to avoid oversized button payload failures
+      - numbered code-block sample rendering for faster in-chat triage
       - numeric severity fallback mapping for common JSON numeric levels
+    - Web deep-inspection UX hardening baseline:
+      - expandable result rows for long payloads
+      - pretty/raw rendering toggle for JSON-style messages
+      - wrap on/off control for wide-line scanning
+      - row metadata chips (line/char count, preview marker, structured detection)
+      - per-row copy line action for evidence handoff
+    - API base probe noise reduction:
+      - client path resolution now prefers private app endpoint first with public fallback on `404`
   - Remaining:
-    - Web deep-inspection UX hardening (after in-chat baseline):
-      - Expand/collapse row details for large log payloads
-      - Pretty/raw toggle for structured JSON logs
-      - Faster triage affordances (copy line, wrap toggle, clearer label chips)
-    - API base probe UX hardening:
-      - Remove or suppress expected local `404` noise from public-first probe path
-      - Prefer private app endpoint path first when runtime context indicates private API usage
     - Optional stream-mode design spike (SSE/WebSocket) with security and rate-control review before any server-push implementation
     - Export workflow backlog (`/export`) after stream-vs-polling direction is finalized
 - Phase 3 started:
@@ -194,20 +197,21 @@ As of 2026-02-25:
   - Remaining:
     - Final marketplace submission packet assembly and dry-run review.
 
-## 7. Field learnings snapshot (2026-02-25)
+## 7. Field learnings snapshot (2026-02-26)
 
 - Loki ingress/query route exposure was validated as healthy in the target observability cluster.
 - Primary Loki query failure cause was selector mismatch, not ingress/path failure:
   - non-working selector example: `{job="rocketchat"}`
   - working environment selector: `{cluster="aks-canepro",namespace="rocketchat"}`
 - `app_logs` source mode worked as expected as no-Loki fallback mode.
-- Current UI pain point confirmed by operator testing:
-  - large/structured log lines are difficult to read and triage quickly in the current results presentation.
+- Previous UI pain point addressed in current branch:
+  - large/structured log lines now have expand/collapse, pretty/raw rendering, wrap toggle, and copy-line affordances.
 - Product sequencing decision after field feedback:
   - prioritize in-chat triage workflow depth first, then web deep-inspection UX improvements.
 - In-chat signal-vs-noise sizing decision:
-  - keep contextual-bar scan speed high with a 20-line preview
-  - allow richer incident evidence handoff with 50-line copy/share payload
+  - keep contextual-bar scan speed high with a 25-line preview
+  - allow richer incident evidence handoff with 60-line copy/share output
+  - keep button payload compact with snapshot references instead of inline large sample payloads
 - These findings are now explicitly reflected in:
   - `docs/RUNBOOK.md` (operational checks and selector diagnosis)
   - `docs/DRIFT_REGISTER.md` (active UX drift items)

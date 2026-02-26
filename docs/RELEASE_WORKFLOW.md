@@ -2,7 +2,7 @@
 
 Standard workflow for versioning, changelog updates, package validation, and release evidence.
 
-Last updated: 2026-02-25
+Last updated: 2026-02-26
 
 ## 1. Purpose
 
@@ -25,6 +25,8 @@ Required references before cutting a release:
 5. `CHANGELOG.md`
 6. `docs/VERSION_TRACKER.md`
 7. `docs/GITHUB_PUSH_PLAN.md`
+8. `docs/RELEASE_NOTES_v0.1.1_DRAFT.md` (or version-matched release notes draft)
+9. `docs/SMOKE_CHECKLIST_4PM.md` (or version-matched smoke run sheet)
 
 ## 3. Versioning policy
 
@@ -72,7 +74,8 @@ Packaging note:
 
 1. Install packaged artifact on a clean workspace.
 2. Execute smoke checks from `docs/RUNBOOK.md` section 4.
-3. Validate checklist items in `docs/MARKETPLACE_CHECKLIST.md`.
+3. Execute scenario-level run sheet from `docs/SMOKE_CHECKLIST_4PM.md`.
+4. Validate checklist items in `docs/MARKETPLACE_CHECKLIST.md`.
 
 ## 4.4 Release evidence capture
 

@@ -2,7 +2,7 @@
 
 This document tracks intentional and unintentional drift between product design docs and implemented code.
 
-Last updated: 2026-02-25
+Last updated: 2026-02-26
 
 ## Source-of-truth order
 
@@ -19,8 +19,6 @@ If two docs conflict, use this order and open/update a drift item.
 |----|------|----------------------|------------------------|----------|--------------|
 | DR-002 | Endpoint naming | Design examples use `/logs/query`, `/logs/config`, `/logs/audit` | App API paths are `/query`, `/config`, `/audit`, `/targets`, `/threads`, `/views`, `/actions` | Keep current paths for v1, document canonical paths in implementation docs, and avoid mixed examples in future docs | Phase 1 |
 | DR-003 | v1 feature definition | Design lists stream/export in core v1 narrative | Current app ships query/config/audit, slash deep links, row actions, targets/threads, saved views, and UI polling; no stream/export endpoint | Re-scope stream/export to v1.1 backlog until tests and security hardening baseline are complete | Phase 2 |
-| DR-004 | Query results UX readability | Viewer should enable fast triage of long/structured log lines (expandable details, readable formatting) | Current results panel returns data correctly but is difficult to parse for large JSON-heavy lines in day-to-day ops | Prioritize UI readability hardening in Phase 2 continuation (expand/collapse, pretty/raw toggle, copy affordances) before release candidate freeze | Phase 2 |
-| DR-005 | Local API probe noise | Local dev/prod diagnostics should avoid misleading endpoint errors in browser console | Client candidate probing can emit expected `404` while falling back across public/private app API paths | Keep fallback behavior but reduce operator confusion: prefer private-first probing when appropriate and suppress expected probe noise in UI docs/telemetry | Phase 2 |
 
 ## Closed drift items
 
@@ -47,3 +45,6 @@ If two docs conflict, use this order and open/update a drift item.
 | DR-C019 | Command vs Loki readiness expectation | Aligned docs and implementation policy: `/logs` is a fast, context-aware entrypoint; Loki configuration is enforced at viewer/query time with explicit runtime error messaging |
 | DR-C020 | Community/upstream signal tracking gap | Added `docs/COMMUNITY_INTELLIGENCE.md` with official/community sources, decision implications, and review cadence; linked from README/plan/handoff |
 | DR-C021 | In-chat workflow depth | Implemented private slash contextual-bar triage summary with timestamped samples, in-chat copy/share actions, audited share flow, and updated docs/runbook coverage |
+| DR-C022 | Slash action payload fragility | Replaced large inline sample payload strategy with per-user persisted sample snapshots and compact snapshot references in slash-card button values |
+| DR-C023 | Query results UX readability | Implemented expandable rows, pretty/raw message mode, wrap toggle, row metadata chips, and copy-line affordance in query results panel |
+| DR-C024 | Local API probe noise | Switched browser candidate path resolution to private-first with public fallback, reducing expected `404` probe noise in private app API workflows |
