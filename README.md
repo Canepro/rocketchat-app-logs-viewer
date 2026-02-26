@@ -1,169 +1,116 @@
-# Log Viewer – Rocket.Chat App (Design & Future Implementation)
+# Rocket.Chat Logs Viewer App
 
-This repository holds the **design** for a Rocket.Chat Marketplace app that brings log/diagnostics visibility back into the product after logs were removed from the app UI in v8.x. The app **complements** Loki and Grafana; it does not replace them.
+Rocket.Chat-native diagnostics app that brings high-signal log triage into chat workflows without trying to replace Loki/Grafana.
 
-- **[DESIGN.md](./DESIGN.md)** – Full design: positioning, **target users and two modes** (Self-hosted Ops vs SaaS Diagnostics), **Rocket.Chat context** (8.0 removal, official Grafana+Loki path, PRs #18/#223), query safety, access model, tenant scoping, guardrails, packaging spike, v1 Loki-only, **slash-command differentiators vs Loki**, and **delivery complexity/effort estimates**.
+## Why this exists
 
-Summary:
+Rocket.Chat moved log visibility away from the app UI in v8.x and now points operators to external observability stacks. This app keeps that architecture, but restores a fast in-chat workflow:
 
-- **Two modes:** (1) **Self-hosted Ops** (v1): Loki-backed log viewer inside RC, with RC-native workflow (deep links, audit, slash command). (2) **SaaS Diagnostics** (v2, optional): only if Rocket.Chat exposes data (app/integration errors, webhooks, audit); explicitly *not* raw server logs.
-- **Target users:** Self-hosted ops first; SaaS mode only after validating available data sources. v1 does not promise raw logs for SaaS.
-- **Rocket.Chat app:** Slash command `/logs`, External Component, app API proxying to Loki. Permission `view-logs`; audit trail; required Loki labels; strict query builder and operational guardrails.
-- **Before implementation:** Packaging spike (§3.5); v1 = Loki-only for self-hosted. For SaaS mode later: validate RC Cloud/SaaS APIs before building.
-- **Planning clarity:** Includes command-led product differentiators and realistic effort ranges (MVP vs production v1 vs SaaS Diagnostics).
-- **Upstream-aware delivery:** Community and upstream watch process documented to reduce drift from Rocket.Chat product direction.
+- run `/logs` where the incident happens
+- get private, room/thread-aware triage context
+- share only what is needed to the right room/thread
+- open a richer web view when deeper inspection is needed
 
-## North Star
+## Product scope
 
-This app is a Rocket.Chat-native diagnostics workflow, not a Loki replacement.
+This project is intentionally scoped as a Rocket.Chat workflow layer.
 
-Build toward:
-- in-chat incident response workflows (room/thread-aware actions, slash-entry context, audit trail)
-- safe and opinionated server-side controls (RBAC, guardrails, redaction)
-- fast operator flow inside Rocket.Chat with links to deeper observability when needed
+In scope:
+- Rocket.Chat slash-first operator flow (`/logs`)
+- server-side guarded query proxy to Loki (or optional app logs mode)
+- RBAC-aware access checks and request audit trail
+- chat-native actions: share sample, incident draft, thread note
+- focused web UI for query, filtering, saved views, and row actions
 
-Do not build toward:
-- re-implementing Loki/Grafana core capabilities (storage engine, retention engine, full observability suite)
-- broad unscoped query power that bypasses Rocket.Chat-centric security and workflow controls
+Out of scope:
+- replacing Loki/Grafana as a full observability platform
+- bypassing workspace auth/permissions with direct client-side Loki calls
 
-An initial implementation scaffold now exists in this repository and follows the design direction.
+## Current capabilities
 
-## Current scaffold status
+- Rocket.Chat app backend (`main.ts`, `src/**`) with private app API endpoints:
+  - `/health`, `/config`, `/query`, `/audit`, `/targets`, `/threads`, `/views`, `/actions`
+- `/logs` slash command with room/thread context propagation
+- external component web app (`web/`) built with Bun + React + Vite + Tailwind
+- virtualization for large result sets
+- message readability controls (pretty/raw, wrap, collapse/expand, row copy)
+- snapshot-backed slash-card actions for reliable copy/share flows
+- strict validation, rate limiting, query bounds, selector enforcement, redaction
 
-This repository now includes a first implementation scaffold:
+## Architecture summary
 
-- **Rocket.Chat app backend (TypeScript):**
-  - `main.ts` app entrypoint
-  - `src/settings.ts` app settings registration
-  - `src/commands/LogsSlashCommand.ts` `/logs` deep-link command with room/thread context
-  - `src/api/logs/*` app API scaffold (`/health`, `/config`, `/query`, `/audit`, `/targets`, `/threads`, `/views`, `/actions`)
-- **External Component UI scaffold (Bun + React + shadcn-ready):**
-  - `web/` Vite app with Tailwind and shadcn-style UI primitives
-  - wired app API client (`/config`, `/query`, `/audit`, `/targets`, `/threads`, `/views`, `/actions`)
-  - virtualized log results rendering for large payloads
-  - deep-inspection controls for results (pretty/raw message view, wrap toggle, expand/collapse, copy line)
-  - build output configured for `resources/web/`
+1. User triggers `/logs` in Rocket.Chat.
+2. App returns a private contextual bar response with triage summary and actions.
+3. Web UI (optional deeper view) calls the app API only.
+4. App API enforces auth/RBAC/guardrails and queries Loki server-side.
+5. Actions are logged to audit storage for traceability.
 
-`POST /query` now supports feature-flagged source modes:
-- `loki` (default): proxies to Loki with strict request schema validation and guardrails
-- `app_logs` (fallback spike): queries Rocket.Chat app lifecycle logs API (`/api/apps/logs`) using request auth context
+## Tech stack
 
-Shared security guardrails:
-- role-based access (allowed roles setting)
-- workspace RBAC permission integration (`workspace_permission_code`, mode `off|fallback|strict`)
-- default ships as `workspace_permission_mode=strict` with `workspace_permission_code=view-logs`
-- options remain available: `fallback` (rollout compatibility), `off` (local/dev only)
-- persistence-backed per-user rate limiting
-- persisted query audit trail with retention and max-entry controls
-- query bounds enforcement (time window, limit, timeout, selector enforcement)
-- response redaction for likely secrets/tokens with configurable replacement text
-- row actions endpoint for Rocket.Chat-native workflows (`share`, `incident_draft`, `thread_note`)
-- room + thread discovery endpoints for safer action targeting (`/targets`, `/threads`)
-- saved views endpoint and UI workflow for persistent query presets (`/views`)
-- near-real-time polling workflow in UI with bounded interval controls (`5s` to `300s`) for relative time mode
+- Runtime: Node.js (Rocket.Chat Apps-Engine)
+- Package manager/tooling: Bun
+- App backend: TypeScript
+- Web UI: React + Vite + Tailwind + shadcn-style primitives
+- Tests: Bun test + TypeScript typecheck
 
-UI runtime configuration:
-- `VITE_ROCKETCHAT_APP_ID` (optional): overrides app ID used in app API path.
-- `VITE_ROCKETCHAT_API_ORIGIN` (optional): Rocket.Chat origin for local web development.
-- `VITE_ROCKETCHAT_USER_ID` + `VITE_ROCKETCHAT_AUTH_TOKEN` (optional, local dev only): when both are set with `VITE_ROCKETCHAT_API_ORIGIN`, the web client uses same-origin app API calls through Vite proxy (CORS-safe) and forwards these auth headers to Rocket.Chat.
-- `VITE_ROCKETCHAT_APP_API_BASE_PATH` (optional): explicit app API base path override (for example `/api/apps/public/<appId>` or a workspace-specific private path).
+## Quickstart
 
-Local dev auth modes:
-- Cookie mode (no dev auth headers): browser calls `VITE_ROCKETCHAT_API_ORIGIN` directly and relies on Rocket.Chat session cookies; requires Rocket.Chat CORS allowance for your localhost origin.
-- Token mode (recommended for localhost): set `VITE_ROCKETCHAT_USER_ID` and `VITE_ROCKETCHAT_AUTH_TOKEN`; browser stays same-origin and Vite proxy forwards authenticated calls without CORS dependency.
+### Prerequisites
 
-App API path resolution behavior:
-- Default candidate order is private first, then public fallback: `/api/apps/private/<appId>` -> `/api/apps/public/<appId>`.
-- On `404`, the client retries the next candidate automatically.
-- If `VITE_ROCKETCHAT_APP_API_BASE_PATH` is set, it is tried first, then built-in fallbacks.
+- Bun installed
+- Rocket.Chat workspace with private app upload enabled
+- Loki endpoint (for `logs_source_mode=loki`)
 
-`/logs` command usage:
-- `/logs`
-- `/logs preset=incident`
-- `/logs preset=webhook-errors`
-- `/logs preset=auth-failures`
-- `/logs since=30m level=error limit=200`
-- `/logs search=timeout`
-- `/logs start=2026-02-24T10:00:00Z end=2026-02-24T11:00:00Z level=warn`
-- `/logs preset=incident level=warn search=gateway` (explicit args override preset defaults)
+### Local build and checks
 
-Slash response visibility behavior:
-- `/logs` response is private to the invoking user.
-- The app opens a private contextual-bar workflow when trigger context is available.
-- Fallback path uses user-only notification if contextual-bar open is unavailable.
-- The command does not post a room-visible message in channel/group/team contexts.
-- The private response includes a quick triage summary (source mode, window, sampled line count, top levels, top signals, and bounded timestamped sample output lines).
-- Sidebar preview shows up to 25 sampled lines (truncated for scan speed), and may be further reduced by a chat-size safety cap.
-- `Show copy-ready sample` and `Share sample` render up to 40 sampled lines in chat using full-line-priority mode (fewer lines, richer line text).
-- Slash-card actions are snapshot-backed (persisted per user) to avoid large button payload failures.
-- In `app_logs` source mode, quick sample output is intentionally unavailable in slash response; use Open Logs Viewer for full query.
-- In-chat-first actions are available directly in the private slash card:
-  - `Show copy-ready sample`: sends a private copy-ready block of sampled lines.
-    - Rocket.Chat Apps cannot write to the local OS clipboard directly; users copy from the returned block.
-  - `Share sample`: posts sampled lines into the current room/thread with audit logging.
-  - `Share elsewhere`: opens a private modal to share sampled lines to another room (ID or name) the user can access, with optional thread ID and audit logging.
+```bash
+bun install
+bun run test
+bun run typecheck
+bun run build
+bun run package
+```
 
-New workspace quickstart (operator + first user):
+### Deploy package to workspace
 
-1. Install app package and enable it.
-2. Configure settings:
-   - `logs_source_mode=loki` (or `app_logs` for fallback mode)
-   - `loki_base_url` (host only)
-   - `required_label_selector`
-   - `external_component_url`
-   - `allowed_roles`, `workspace_permission_mode`, `workspace_permission_code`
-3. Open any channel/DM and run `/logs`.
-4. Validate private in-chat behavior:
-   - you should see a private contextual bar response
-   - preview should show up to 25 sampled lines
-   - `Show copy-ready sample` (private) and `Share sample` (room/thread) should work
-5. Use **Open Logs Viewer** for deeper inspection, saved views, and row actions.
+```bash
+bun run deploy
+```
 
-The private workflow includes a one-click "Open Logs Viewer" deep link with:
-- room/thread/sender context
-- query prefill params (`since` or `start/end`, `level`, `limit`, `search`)
-- optional `preset` identifier
-- `autorun=1` when explicit filters are provided
+## Core settings (operator)
 
-Current presets:
-- `incident`: `since=30m`, `level=error`, `limit=300`
-- `webhook-errors`: `since=2h`, `level=error`, `limit=400`, `search=webhook`
-- `auth-failures`: `since=1h`, `level=warn`, `limit=300`, `search=auth failed`
+Required baseline:
+- `logs_source_mode`
+- `required_label_selector`
+- `allowed_roles`
+- `workspace_permission_mode`
+- `workspace_permission_code`
 
-## How to run
+Loki mode additionally requires:
+- `loki_base_url`
+- optional auth (`loki_username`, `loki_token`)
 
-1. Install dependencies:
-   - `bun install`
-2. Build backend + web:
-   - `bun run build`
-3. Run tests:
-   - `bun run test`
-4. Package app:
-   - `bun run package`
-5. Deploy app:
-   - `bun run deploy`
+## Security posture
 
-Packaging/deploy notes:
+- private slash-response flow by default
+- role + workspace-permission gate support
+- server-side query validation and limits
+- audit records for queries/actions/denials
+- response redaction for likely secrets
+- bounded sampling for in-chat message safety
 
-- `bun run package` and `bun run deploy` use `rc-apps` native compiler mode (`--experimental-native-compiler`).
-- `.rcappsconfig` excludes non-app workspace paths (`web/**`, `tests/**`, docs) from the packaged artifact.
-- GitHub CI (`.github/workflows/ci.yml`) runs `test`, `typecheck`, `build`, and `package` on pushes/PRs.
+## Documentation map
 
-For implementation details and next steps, see:
+Start with:
+- [`docs/README.md`](docs/README.md)
+- [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md)
+- [`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md)
+- [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md)
+- [`docs/RUNBOOK.md`](docs/RUNBOOK.md)
+- [`CHANGELOG.md`](CHANGELOG.md)
 
-- **[docs/README.md](./docs/README.md)** — docs index (core guides vs release records).
-- **[docs/IMPLEMENTATION.md](./docs/IMPLEMENTATION.md)** — code map, endpoint behavior, and implementation sequence.
-- **[docs/API_CONTRACT.md](./docs/API_CONTRACT.md)** — app API request/response contract and auth model.
-- **[docs/USER_GUIDE.md](./docs/USER_GUIDE.md)** — operator/end-user usage, command reference, and troubleshooting.
-- **[docs/OPERATOR_PROFILES.md](./docs/OPERATOR_PROFILES.md)** — copy-paste setting bundles for production, rollout, and local-dev.
-- **[docs/RUNBOOK.md](./docs/RUNBOOK.md)** — installation, validation, rollback, troubleshooting, and escalation procedures.
-- **[docs/MARKETPLACE_CHECKLIST.md](./docs/MARKETPLACE_CHECKLIST.md)** — release and submission readiness checklist.
-- **[docs/RELEASE_WORKFLOW.md](./docs/RELEASE_WORKFLOW.md)** — versioning, changelog, package validation, and release evidence workflow.
-- **[docs/VERSION_TRACKER.md](./docs/VERSION_TRACKER.md)** — release version baseline, feature-to-version mapping, and next-version recommendation.
-- **[docs/GITHUB_PUSH_PLAN.md](./docs/GITHUB_PUSH_PLAN.md)** — branch/commit/PR/tag checklist for clean repository publishing.
-- **[docs/SMOKE_CHECKLIST.md](./docs/SMOKE_CHECKLIST.md)** — reusable live validation run-sheet and evidence record.
-- **[CHANGELOG.md](./CHANGELOG.md)** — release history and unreleased change tracking.
-- **[docs/RBAC_REVIEW.md](./docs/RBAC_REVIEW.md)** — permission-mode hardening review and failure-mode matrix.
-- **[docs/EXECUTION_PLAN.md](./docs/EXECUTION_PLAN.md)** — enterprise delivery phases, quality gates, and definition-of-done.
-- **[docs/DRIFT_REGISTER.md](./docs/DRIFT_REGISTER.md)** — tracked design/implementation drift and resolution status.
-- **[docs/COMMUNITY_INTELLIGENCE.md](./docs/COMMUNITY_INTELLIGENCE.md)** — tracked official/community signals, references, and review cadence.
+## Evidence and sensitive artifacts
+
+Raw runtime artifacts (HAR, workspace screenshots, raw app logs) are intentionally not committed. Keep them in private storage and only publish redacted summaries.
+
+Repository policy is documented in [`evidence/README.md`](evidence/README.md).

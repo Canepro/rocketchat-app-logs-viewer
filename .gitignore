@@ -4,8 +4,19 @@ dist
 resources/web
 web/node_modules
 *.log
+*.har
 *.tsbuildinfo
 web/vite.config.js
 web/vite.config.d.ts
 web/tailwind.config.js
 web/tailwind.config.d.ts
+
+# Keep evidence structure/templates, but never commit raw runtime artifacts.
+evidence/**/network/*
+!evidence/**/network/.gitkeep
+evidence/**/screenshots/*
+!evidence/**/screenshots/.gitkeep
+evidence/**/app-logs/*
+!evidence/**/app-logs/.gitkeep
+evidence/**/notes/*.md
+!evidence/**/notes/.gitkeep

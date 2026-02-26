@@ -27,5 +27,6 @@ Use this index to find canonical docs quickly and avoid drift.
 
 ## 4. Evidence location
 
-- Runtime smoke artifacts live under:
-  - `evidence/2026-02-26-v0.1.1-smoke/`
+- Repository-safe templates and folder structure live under `evidence/`.
+- Raw runtime artifacts (HAR, workspace screenshots, raw logs, unredacted notes) must stay in private storage outside git.
+- See `evidence/README.md` for handling policy.

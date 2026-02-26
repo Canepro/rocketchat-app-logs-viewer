@@ -4,6 +4,14 @@ Operational run-sheet for live validation of a packaged release.
 
 Last updated: 2026-02-26
 
+## Data handling policy
+
+This checklist references evidence filenames for operator consistency, but raw runtime artifacts are sensitive and should not be committed to git.
+
+- Store HAR files, workspace screenshots, raw logs, and unredacted notes in private storage.
+- Keep only sanitized summaries/templates in this repository.
+- Follow `evidence/README.md` before publishing the repository.
+
 ## 1. Goal
 
 Validate release behavior end-to-end in a live Rocket.Chat workspace.
@@ -32,7 +40,7 @@ Validate release behavior end-to-end in a live Rocket.Chat workspace.
 | Branch | `main` |
 | Artifact | `dist/logs-viewer_<version>.zip` |
 | Artifact SHA256 | `TBD` |
-| Evidence root | `evidence/<date>-v<version>-smoke/` |
+| Evidence root (private storage) | `<private-path>/<date>-v<version>-smoke/` |
 | Allowed user | `TBD` |
 | Denied user | `TBD` |
 | Target room | `TBD` |
@@ -121,7 +129,7 @@ Expected:
 
 ## 4. Pass/Fail Record
 
-| Check | Result | Evidence | Notes |
+| Check | Result | Evidence (private storage ref) | Notes |
 |------|--------|----------|-------|
 | Slash privacy | `PASS/FAIL` | `screenshots/02-slash-private-panel.png` | Private contextual bar shows "Only you can see this /logs response". |
 | Summary readability | `PASS/FAIL` | `screenshots/02-slash-private-panel.png` | Numbered preview, top levels/signals, and chat-size cap note visible. |

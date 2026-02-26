@@ -91,6 +91,12 @@ For each release, capture:
 
 Store this evidence in your release ticket or release notes record.
 
+Sensitive artifact policy:
+
+- Do not commit raw HAR files, workspace screenshots, or raw app/server logs to this repository.
+- Keep raw evidence in private storage and link to it from release records.
+- If sanitized examples are needed in git, redact tenant/user/host/token data first.
+
 ## 5. Changelog format
 
 Use this section layout per version:
