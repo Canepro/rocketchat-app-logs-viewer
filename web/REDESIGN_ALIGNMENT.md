@@ -24,6 +24,24 @@ See root `docs/STACK.md` and `README.md` for full stack and app architecture.
 - Theme and tokens compatible with Rocket.Chat embedding (design calls out dark/light as nice-to-have in `DESIGN.md` §4.3).
 - Preserve existing behavior: query form, saved views, targets/threads pickers, row actions, polling, virtualized list, expand/copy/wrap/pretty-raw controls. Redesign improves how they look and are organized, not what they do.
 
+## Current redesign outcomes (implemented)
+
+1. Enterprise shell and hierarchy:
+   - subtle app-shell gradient backdrop
+   - bordered, elevated header and section cards
+   - clearer top-level telemetry (default range, max lines, app id, api base)
+2. Results readability hardening:
+   - high-contrast monospace log surface for message bodies
+   - level-accented row rails (`error`, `warn`, `info`, `debug`, `unknown`)
+   - alternating row tones for faster scanning of dense streams
+   - truncated label chips with full-value tooltip titles
+   - larger virtualized viewport (`640px`) for higher log density per screen
+3. UX/accessibility correctness:
+   - slash context card keeps actionable IDs visible (`roomId`, `threadId`, `senderId`)
+   - config error state includes backend detail payload when available
+   - alert semantics: destructive alerts are assertive; non-destructive alerts are polite status updates
+   - theme-aware select caret icon (no hardcoded color)
+
 ## References
 
 - **Design & product:** Root `DESIGN.md` (positioning, features, guardrails).

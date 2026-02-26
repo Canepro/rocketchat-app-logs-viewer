@@ -4,9 +4,9 @@ This file documents the current scaffold and implemented backend behavior.
 
 ## 0. Version snapshot
 
-- `app.json` version: `0.1.0`
-- Baseline release: `0.1.0` (see `CHANGELOG.md`)
-- Ongoing post-baseline changes are tracked under `Unreleased` in `CHANGELOG.md` and mapped in `docs/VERSION_TRACKER.md`.
+- `app.json` version: `0.1.1`
+- Current stable release: `0.1.1` (see `CHANGELOG.md`)
+- Ongoing changes are tracked under `Unreleased` in `CHANGELOG.md` and mapped in `docs/VERSION_TRACKER.md`.
 
 ## 1. Code map
 
@@ -20,7 +20,7 @@ This file documents the current scaffold and implemented backend behavior.
 - `main.ts`
   - App entrypoint (`LogsViewerApp`).
   - Registers settings, slash command, app API, and external component.
-  - Handles UIKit block actions for private slash-card buttons (`Copy sample`, `Share sample`).
+  - Handles UIKit block actions for private slash-card buttons (`Show copy-ready sample`, `Share sample`, `Share elsewhere`).
 - `src/constants.ts`
   - Central IDs for commands and settings.
 - `src/settings.ts`
@@ -50,12 +50,13 @@ This file documents the current scaffold and implemented backend behavior.
   - Private slash response includes quick triage summary metadata plus timestamped sample output lines (bounded and truncated).
   - Current sample behavior:
     - sidebar preview up to 25 lines (plus chat-size cap)
-    - copy/share chat output up to 60 lines
+    - copy/share chat output up to 40 lines
     - persisted sample snapshot storage up to 80 lines (used by slash-card actions)
   - Includes numeric severity fallback mapping for common JSON numeric levels.
   - Private slash card includes in-chat action buttons:
-    - `Copy sample` -> private copy-ready evidence block
+    - `Show copy-ready sample` -> private copy-ready evidence block
     - `Share sample` -> posts sampled evidence in-room/in-thread with audit entry
+    - `Share elsewhere` -> opens a private modal to share sampled evidence into another accessible room/thread
 - `src/commands/slashCardActions.ts`
   - Encodes/decodes slash-card button payloads with strict sanitization and bounds.
   - Centralizes action IDs and sample line payload limits.
@@ -115,6 +116,9 @@ This file documents the current scaffold and implemented backend behavior.
     - per-row expand/collapse
     - per-row copy line
     - row metadata badges (line/char counts, structured detection, preview marker)
+    - level-accented row rails + alternating row tones for dense scan speed
+    - high-contrast monospace message surface for long-line diagnostics readability
+    - truncated label chips with tooltip title for full label values
   - Includes room-scoped thread discovery UX (`/threads`) with searchable thread quick-selection.
   - Includes saved views workflow (`/views`) with create/apply/update/delete controls.
   - Includes near-real-time polling controls with safe interval clamp and start/stop behavior.
@@ -149,8 +153,8 @@ This file documents the current scaffold and implemented backend behavior.
 ## 2. API behavior (current)
 
 - Browser base-path resolution:
-  - primary: `/api/apps/public/<appId>`
-  - fallback on `404`: `/api/apps/private/<appId>`
+  - primary: `/api/apps/private/<appId>`
+  - fallback on `404`: `/api/apps/public/<appId>`
   - optional explicit override: `VITE_ROCKETCHAT_APP_API_BASE_PATH`
 - `GET /api/apps/.../health`
   - Auth required.
@@ -200,22 +204,20 @@ This file documents the current scaffold and implemented backend behavior.
   - Enforces user membership in target room.
   - Posts app-authored message in target room/thread and audits result.
 
-## 3. Recommended implementation sequence
+## 3. Recommended next implementation sequence
 
-1. Contract + security hardening
-  - Add `view-logs` permission enforcement (with role allowlist as optional second gate).
-  - Add backend and slash-command tests for validation/security/preset precedence.
-2. External Component
-   - Keep shipped row-action workflows and polling UX stable.
-   - Evaluate stream-style diagnostics only after an explicit backend `/stream` contract and security review.
-3. Multi-tenant policy hardening
-   - Add allowlist-based label policy for tenant/environment scoping.
-   - Add policy tests for selector composition and cross-tenant leakage prevention.
-4. Product workflow
-   - Add deep links from slash command and action buttons into filtered views.
-   - Add in-app diagnostics shortcuts (e.g., “last error in this room context”).
-5. Packaging/deployment
-   - Validate app-served static asset strategy from design spike (Option A vs B).
+1. In-chat workflow hardening (backend-first)
+  - Keep slash action reliability and audit behavior stable across Rocket.Chat versions.
+  - Add targeted tests for edge cases observed in field smoke runs (message-size limits, missing optional workspace settings).
+2. Marketplace/compliance completion
+   - Run submission dry-run from `docs/MARKETPLACE_CHECKLIST.md` and capture evidence per release.
+   - Keep release/governance docs aligned in same change set as code.
+3. Frontend track (parallel branch)
+   - Evolve web UI design and readability in a dedicated frontend branch without blocking backend/release work.
+   - Re-run full quality gates after frontend merges to protect in-chat workflow stability.
+4. Post-v1 roadmap spikes
+   - Evaluate stream-style diagnostics (SSE/WebSocket) only with explicit contract + threat model first.
+   - Keep `/export` as backlog until stream-vs-polling direction is finalized.
 
 ## 4. Current slash presets
 

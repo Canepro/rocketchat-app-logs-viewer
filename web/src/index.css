@@ -50,3 +50,21 @@ body {
 .font-mono-log {
   font-family: "IBM Plex Mono", "JetBrains Mono", "Fira Code", ui-monospace, monospace;
 }
+
+/* Subtle scrollbar styling keeps long-log navigation visible without visual noise. */
+.log-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+
+.log-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.log-scrollbar::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}

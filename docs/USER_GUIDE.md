@@ -152,6 +152,10 @@ The UI enforces basic client validation. Backend still enforces authoritative li
   - `Wrap: on/off` for long-line scanning
   - per-row `Expand details` / `Collapse details`
   - per-row `Copy line`
+- Results readability is optimized for incident triage:
+  - high-contrast monospace message surface
+  - level-accented row rails and alternating row tones
+  - long label chips are truncated visually; hover to view full value
 - Collapsed mode shows a bounded preview for scan speed; expanded mode shows full message + more labels
 - Redaction metadata is shown in query summary when applicable
 
@@ -245,7 +249,7 @@ The UI enforces basic client validation. Backend still enforces authoritative li
     - `VITE_ROCKETCHAT_AUTH_TOKEN=<personal-access-token-or-auth-token>`
     - Then run `bun run dev:web`
     - Browser calls stay same-origin and Vite proxy forwards auth headers to Rocket.Chat.
-    - The client tries app API bases in order: `/api/apps/public/<appId>` then `/api/apps/private/<appId>` (404 fallback).
+    - The client tries app API bases in order: `/api/apps/private/<appId>` then `/api/apps/public/<appId>` (404 fallback).
 - If your workspace uses tokenized private routes, set:
   - `VITE_ROCKETCHAT_APP_API_BASE_PATH=<exact-base-path>`
 - Restart the dev server after changing any `VITE_*` env variables.
@@ -263,7 +267,7 @@ The UI enforces basic client validation. Backend still enforces authoritative li
 - Use `Wrap: off` when scanning repeated prefixes in wide logs.
 - Use `Copy line` for private clipboard handoff before posting room-visible evidence.
 
-## `Copy sample` / `Share sample` does not respond
+## `Show copy-ready sample` / `Share sample` does not respond
 
 - Confirm app was re-uploaded after the latest build/package.
 - Confirm the app is enabled and `/logs` opens the private contextual bar.

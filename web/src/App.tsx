@@ -160,6 +160,22 @@ const levelVariant = (level: string): 'default' | 'secondary' | 'outline' => {
   return 'outline';
 };
 
+const levelRailClass = (level: string): string => {
+  if (level === 'error') {
+    return 'border-l-4 border-l-red-500';
+  }
+  if (level === 'warn') {
+    return 'border-l-4 border-l-amber-500';
+  }
+  if (level === 'info') {
+    return 'border-l-4 border-l-sky-500';
+  }
+  if (level === 'debug') {
+    return 'border-l-4 border-l-slate-400';
+  }
+  return 'border-l-4 border-l-violet-400';
+};
+
 const summarizeSavedView = (query: SavedViewQuery): string => {
   const timePart = query.timeMode === 'relative'
     ? `since=${query.since || 'n/a'}`
@@ -889,9 +905,12 @@ export function App() {
   );
 
   return (
-    <main className="min-h-screen bg-background text-foreground" role="main">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:py-8 lg:px-8">
-        <header className="flex flex-col gap-3 border-b border-border pb-4">
+    <main
+      className="min-h-screen bg-[radial-gradient(circle_at_top,_hsl(var(--muted))_0%,_hsl(var(--background))_45%)] text-foreground"
+      role="main"
+    >
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:px-8 lg:py-8">
+        <header className="rounded-xl border border-border/80 bg-card/90 px-5 py-4 shadow-sm backdrop-blur">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Logs Viewer</h1>
             <div className="flex flex-wrap items-center gap-2">
@@ -906,10 +925,14 @@ export function App() {
           <p className="text-sm text-muted-foreground">
             Query logs via the app API. Default range: {configQuery.data?.config.defaultTimeRange ?? '—'} · Max lines: {configQuery.data?.config.maxLinesPerQuery ?? '—'}
           </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Badge variant="outline">App: {runtime.appId}</Badge>
+            <Badge variant="outline">API base: {runtime.privateApiBase}</Badge>
+          </div>
         </header>
 
         {prefill.context.roomId || prefill.context.threadId ? (
-          <Card className="border-primary/20">
+          <Card className="border-primary/20 shadow-sm">
             <CardHeader className="py-3">
               <CardTitle className="text-sm font-medium">From /logs</CardTitle>
               <CardDescription className="text-xs">Room and thread context for row actions.</CardDescription>
@@ -932,7 +955,7 @@ export function App() {
         ) : null}
 
         <section className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-          <Card>
+          <Card className="border-border/80 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Search className="h-4 w-4" />
@@ -1044,17 +1067,17 @@ export function App() {
               ) : null}
 
               {logsMutation.data ? (
-                <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2 lg:grid-cols-4">
-                  <p>returned: {logsMutation.data.meta.returned}</p>
-                  <p>truncated: {String(logsMutation.data.meta.truncated)}</p>
-                  <p>redacted lines: {logsMutation.data.meta.redaction?.redactedLines ?? 0}</p>
-                  <p>total redactions: {logsMutation.data.meta.redaction?.totalRedactions ?? 0}</p>
+                <div className="grid gap-3 rounded-lg border border-border/70 bg-muted/20 p-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
+                  <p><span className="text-muted-foreground">Returned:</span> <span className="font-semibold text-foreground">{logsMutation.data.meta.returned}</span></p>
+                  <p><span className="text-muted-foreground">Truncated:</span> <span className="font-semibold text-foreground">{String(logsMutation.data.meta.truncated)}</span></p>
+                  <p><span className="text-muted-foreground">Redacted lines:</span> <span className="font-semibold text-foreground">{logsMutation.data.meta.redaction?.redactedLines ?? 0}</span></p>
+                  <p><span className="text-muted-foreground">Total redactions:</span> <span className="font-semibold text-foreground">{logsMutation.data.meta.redaction?.totalRedactions ?? 0}</span></p>
                 </div>
               ) : null}
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-border/80 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <History className="h-4 w-4" />
@@ -1121,7 +1144,7 @@ export function App() {
           </Card>
         </section>
 
-        <Card>
+        <Card className="border-border/80 shadow-sm">
           <CardHeader>
             <CardTitle className="text-base">Saved views</CardTitle>
             <CardDescription>
@@ -1213,7 +1236,7 @@ export function App() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-border/80 shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Database className="h-4 w-4" />
@@ -1396,7 +1419,7 @@ export function App() {
               />
             ) : (
               <>
-                <div className="mb-3 grid gap-3 rounded-lg border border-border bg-muted/20 p-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="mb-3 grid gap-3 rounded-lg border border-border/80 bg-muted/20 p-3 sm:grid-cols-2 lg:grid-cols-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="message-view">Message view</Label>
                     <Select
@@ -1430,7 +1453,7 @@ export function App() {
                   ) : null}
                 </div>
 
-                <div ref={parentRef} className="h-[560px] overflow-auto rounded-md border">
+                <div ref={parentRef} className="log-scrollbar h-[640px] overflow-auto rounded-lg border border-border/80 bg-card/60 shadow-inner">
                   <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
                     {virtualizer.getVirtualItems().map((item) => {
                       const entry = entries[item.index];
@@ -1443,17 +1466,21 @@ export function App() {
                       );
                       const hasMoreLabels = Object.keys(entry.labels).length > visibleLabels.length;
 
+                      // Alternate row tone improves scan speed when operators compare adjacent log lines quickly.
+                      const rowToneClass = item.index % 2 === 0 ? 'bg-background/95' : 'bg-muted/15';
+
                       return (
                         <article
                           key={`${entry.timestamp}-${item.index}`}
                           data-index={item.index}
+                          data-level={entry.level}
                           ref={(node) => {
                             if (node) {
                               // Measure each row after render to support mixed row heights.
                               virtualizer.measureElement(node);
                             }
                           }}
-                          className="absolute left-0 top-0 w-full border-b bg-background p-3"
+                          className={`absolute left-0 top-0 w-full border-b border-border/80 p-4 ${rowToneClass} ${levelRailClass(entry.level)}`}
                           style={{ transform: `translateY(${item.start}px)` }}
                         >
                           <div className="flex flex-wrap items-center gap-2">
@@ -1465,8 +1492,9 @@ export function App() {
                             {messageSummary.truncated ? <Badge variant="secondary">preview</Badge> : null}
                           </div>
 
+                          {/* Keep message panel high-contrast and monospace for long-line diagnostics readability. */}
                           <pre
-                            className={`font-mono-log mt-2 rounded-md border bg-muted/20 p-2 text-xs ${
+                            className={`font-mono-log mt-3 rounded-lg border border-slate-700/80 bg-slate-950 p-3 text-[12.5px] leading-5 text-slate-100 shadow-inner ${
                               wrapLogLines ? 'whitespace-pre-wrap break-words' : 'whitespace-pre overflow-x-auto'
                             }`}
                           >
@@ -1475,7 +1503,12 @@ export function App() {
 
                           <div className="mt-2 flex flex-wrap gap-1">
                             {visibleLabels.map(([key, value]) => (
-                              <Badge key={`${key}-${value}`} variant="outline" className="font-normal">
+                              <Badge
+                                key={`${key}-${value}`}
+                                variant="outline"
+                                className="max-w-[280px] truncate border-border/70 font-normal"
+                                title={`${key}=${value}`}
+                              >
                                 {key}={value}
                               </Badge>
                             ))}
