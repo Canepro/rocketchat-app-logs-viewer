@@ -6,51 +6,24 @@ Last updated: 2026-02-26
 
 ## 1. Current version state
 
-- `app.json` version: `0.1.0`
-- Current packaged artifact name: `logs-viewer_0.1.0.zip`
+- `app.json` version: `0.1.1`
+- Current packaged artifact name: `logs-viewer_0.1.1.zip`
 - Release state:
-  - `0.1.0` is the current baseline pre-release version.
-  - `CHANGELOG.md` has been cut for `0.1.1-pre` (tag-ready), while `app.json` remains `0.1.0` until version bump.
+  - `0.1.1` is the current stable release.
+  - `0.1.1-pre` remains as historical pre-release validation tag.
 
 ## 2. Released versions
 
 | Version | Date | Status | Feature baseline |
 |---------|------|--------|------------------|
+| `0.1.1` | 2026-02-26 | Stable | In-chat-private `/logs` UX hardening, snapshot-backed slash actions, `Show copy-ready sample`, `Share sample`, `Share elsewhere` modal flow, full-line-priority copy/share sizing, web row readability controls, private-first API probing, packaging/release/runbook governance |
 | `0.1.0` | 2026-02-25 | Pre-release | Core app scaffold, `/logs` command, `/query` `/audit` `/targets` `/threads` `/views` `/actions`, RBAC modes, redaction, rate limit, audit, saved views, polling, row actions, foundational docs and tests |
 
-## 3. 0.1.1-pre candidate scope
+## 3. Unreleased
 
-Current `0.1.1-pre` scope in `CHANGELOG.md` includes:
+Current `Unreleased` scope in `CHANGELOG.md` includes:
 
-- Private in-chat `/logs` response semantics (no room-visible slash output).
-- Slash contextual-bar quick triage summary with timestamped sample output.
-- In-chat-first actions from slash card:
-  - `Show copy-ready sample` (private evidence block)
-  - `Share sample` (room/thread evidence + audit)
-  - `Share elsewhere` (private modal for target room/thread evidence + audit)
-- Sample sizing policy:
-  - sidebar preview up to `25` lines (with chat-size safety cap)
-  - copy/share chat output up to `40` lines in full-line-priority mode
-- Slash-card action payload reliability hardening:
-  - per-user persisted sample snapshots
-  - compact snapshot ID references in button payloads
-  - stale snapshot fail-safe response prompting rerun of `/logs`
-  - snapshot TTL enforced at read time to prevent stale snapshot reuse
-- Readability hardening:
-  - numbered code-block formatting for copy/share and slash preview sample lines
-- Web deep-inspection readability hardening:
-  - pretty/raw message rendering mode
-  - wrap on/off toggle
-  - per-row expand/collapse and copy line
-  - row metadata chips for line/char counts and structured detection
-- API probe-noise hardening:
-  - browser app API path resolution changed to private-first with public fallback
-- Reliability hardening for slash-card actions:
-  - server-side user/room resolution for interaction handling
-  - safe optional read for `Message_MaxAllowedSize`
-  - UIKit view-submit handling for share-elsewhere modal with room/thread validation
-- Numeric severity fallback mapping for common JSON numeric levels in slash summary.
-- Packaging hardening and expanded docs/process governance updates.
+- No changes yet.
 
 Release manager note:
 
@@ -60,7 +33,7 @@ Release manager note:
 
 Recommended next release when scope is accepted:
 
-- Suggested version: `0.1.1` (patch)
+- Suggested version: `0.1.2` (patch) for incremental fixes, or `0.2.0` for new feature scope.
 - Rationale:
   - behavior improvements and reliability hardening
   - no endpoint-contract breaking changes

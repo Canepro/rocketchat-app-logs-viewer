@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file.
 
 No changes yet.
 
-## [0.1.1-pre] - 2026-02-26
+## [0.1.1] - 2026-02-26
 
 ### Added
 
