@@ -221,7 +221,9 @@ describe('LogsSlashCommand visibility behavior', () => {
         const cardActionButtons = (actionBlocks[1]?.elements || []) as Array<any>;
         expect(cardActionButtons.some((button) => button.actionId === SLASH_CARD_ACTION.COPY_SAMPLE)).toBe(true);
         expect(cardActionButtons.some((button) => button.actionId === SLASH_CARD_ACTION.SHARE_SAMPLE)).toBe(true);
-        const decodedPayload = decodeSlashCardActionPayload(cardActionButtons[0]?.value);
+        expect(cardActionButtons.some((button) => button.actionId === SLASH_CARD_ACTION.SHARE_ELSEWHERE)).toBe(true);
+        const copyButton = cardActionButtons.find((button) => button.actionId === SLASH_CARD_ACTION.COPY_SAMPLE);
+        const decodedPayload = decodeSlashCardActionPayload(copyButton?.value);
         expect(decodedPayload?.roomId).toBe('room-1');
         expect(decodedPayload?.roomName).toBe('Support_Stuff');
         expect(decodedPayload?.sampleOutput.length).toBe(3);
@@ -233,7 +235,7 @@ describe('LogsSlashCommand visibility behavior', () => {
         expect(flattenedText).toContain('Top levels: error:3');
         expect(flattenedText).toContain('Sample preview: showing 3/3 sampled lines');
         expect(flattenedText).toContain('2026-01-01T00:00:00.000Z');
-        expect(flattenedText).toContain('01 [error] 2026-01-01T00:00:00.000Z Connection ended');
+        expect(flattenedText).toContain('01 [error] 2026-01-01T00:00:00.000Z {\\"msg\\":\\"Connection ended\\"}');
         expect(flattenedText).toContain('Connection ended');
         expect(notifications.length).toBe(0);
         expect(finishes.length).toBe(0);
@@ -284,9 +286,10 @@ describe('LogsSlashCommand visibility behavior', () => {
         expect(persistenceWrites.length).toBe(1);
         const actionBlocks = ((opens[0].view as any).blocks as Array<any>).filter((block) => block.type === 'actions');
         const cardActionButtons = (actionBlocks[1]?.elements || []) as Array<any>;
-        const decodedPayload = decodeSlashCardActionPayload(cardActionButtons[0]?.value);
+        const copyButton = cardActionButtons.find((button) => button.actionId === SLASH_CARD_ACTION.COPY_SAMPLE);
+        const decodedPayload = decodeSlashCardActionPayload(copyButton?.value);
         expect(decodedPayload?.snapshotId).toBeDefined();
-        expect(decodedPayload?.sampleOutput.length).toBe(0);
+        expect(decodedPayload?.sampleOutput.length).toBe(3);
         expect(decodedPayload?.sampleTotalCount).toBe(3);
     });
 
@@ -348,6 +351,73 @@ describe('LogsSlashCommand visibility behavior', () => {
         expect(opens.length).toBe(1);
         const flattenedText = JSON.stringify((opens[0].view as any).blocks);
         expect(flattenedText).toContain('chat-size cap');
+    });
+
+    it('persists richer sample line text for copy/share snapshot data', async () => {
+        const command = new LogsSlashCommand('test-app-id');
+        const opens: Array<any> = [];
+        const persistenceWrites: Array<any> = [];
+
+        const modify: any = {
+            getCreator: () => ({
+                startMessage: () => createMessageBuilder(),
+                getBlockBuilder: () => createBlockBuilder(),
+                finish: async () => 'message-id',
+            }),
+            getNotifier: () => ({
+                notifyUser: async () => undefined,
+            }),
+            getUiController: () => ({
+                openSurfaceView: async (view: unknown, interaction: unknown, user: unknown) => {
+                    opens.push({ view, interaction, user });
+                },
+            }),
+        };
+
+        const longTailMarker = 'TAIL_MARKER_FOR_COPY_SHARE';
+        const context: any = {
+            getSender: () => ({ id: 'u1', username: 'vincent', roles: ['admin'] }),
+            getRoom: () => room,
+            getArguments: () => ['since=15m', 'limit=200'],
+            getThreadId: () => undefined,
+            getTriggerId: () => 'trigger-1',
+        };
+
+        await command.executor(
+            context,
+            createRead(),
+            modify,
+            createHttp({
+                data: {
+                    status: 'success',
+                    data: {
+                        result: [
+                            {
+                                stream: { level: 'error' },
+                                values: [[
+                                    '1767225600000000000',
+                                    JSON.stringify({
+                                        msg: `prefix_${'x'.repeat(240)}_${longTailMarker}`,
+                                    }),
+                                ]],
+                            },
+                        ],
+                    },
+                },
+            }),
+            {
+                updateByAssociation: async (...args: Array<unknown>) => {
+                    persistenceWrites.push(args);
+                },
+            } as any,
+        );
+
+        expect(opens.length).toBe(1);
+        expect(persistenceWrites.length).toBe(1);
+        const snapshotRecord = persistenceWrites[0]?.[1] as any;
+        const latestEntry = (snapshotRecord?.entries || [])[0];
+        expect(typeof latestEntry?.sampleOutput?.[0]?.text).toBe('string');
+        expect(latestEntry.sampleOutput[0].text).toContain(longTailMarker);
     });
 
     it('returns app_logs summary note when source mode is app_logs', async () => {

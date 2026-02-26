@@ -17,6 +17,8 @@ export type AuditEntry = {
         | 'query_denied'
         | 'share'
         | 'share_denied'
+        | 'share_elsewhere'
+        | 'share_elsewhere_denied'
         | 'incident_draft'
         | 'incident_draft_denied'
         | 'thread_note'

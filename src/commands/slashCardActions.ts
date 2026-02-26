@@ -3,6 +3,7 @@ export type QueryLevel = 'error' | 'warn' | 'info' | 'debug';
 export const SLASH_CARD_ACTION = {
     COPY_SAMPLE: 'logs_slash_copy_sample',
     SHARE_SAMPLE: 'logs_slash_share_sample',
+    SHARE_ELSEWHERE: 'logs_slash_share_elsewhere',
 } as const;
 
 type SlashCardActionId = (typeof SLASH_CARD_ACTION)[keyof typeof SLASH_CARD_ACTION];
@@ -38,7 +39,9 @@ const MAX_SAMPLE_TEXT_LENGTH = 220;
 const LEVELS = new Set<QueryLevel | 'unknown'>(['error', 'warn', 'info', 'debug', 'unknown']);
 
 export const isSlashCardActionId = (value: string | undefined): value is SlashCardActionId =>
-    value === SLASH_CARD_ACTION.COPY_SAMPLE || value === SLASH_CARD_ACTION.SHARE_SAMPLE;
+    value === SLASH_CARD_ACTION.COPY_SAMPLE
+        || value === SLASH_CARD_ACTION.SHARE_SAMPLE
+        || value === SLASH_CARD_ACTION.SHARE_ELSEWHERE;
 
 export const encodeSlashCardActionPayload = (payload: SlashCardActionPayload): string =>
     // Keep button payload compact and opaque; handler re-validates every field after decode.

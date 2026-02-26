@@ -26,6 +26,7 @@ type SummaryEntry = {
     level: QueryLevel | 'unknown';
     signal: string;
     preview: string;
+    lineText: string;
     timestamp?: string;
 };
 
@@ -58,6 +59,8 @@ const QUICK_SAMPLE_OUTPUT_MAX_LINES = 80;
 const QUICK_SAMPLE_OUTPUT_PREVIEW_LINES = 25;
 const QUICK_SAMPLE_OUTPUT_PREVIEW_CHAR_BUDGET = 1800;
 const QUICK_SAMPLE_OUTPUT_FALLBACK_LINES = 8;
+const QUICK_SAMPLE_OUTPUT_LINE_TEXT_MAX = 2400;
+const QUICK_SAMPLE_OUTPUT_INLINE_FALLBACK_TEXT_MAX = 220;
 const DURATION_PATTERN = /^\d+\s*[smhdw]$/i;
 const CODE_FENCE = '```';
 const PRESETS: Record<PresetName, PresetDefinition> = {
@@ -238,12 +241,18 @@ export class LogsSlashCommand implements ISlashCommand {
             elements: [
                 blocks.newButtonElement({
                     actionId: SLASH_CARD_ACTION.COPY_SAMPLE,
-                    text: blocks.newPlainTextObject('Copy sample'),
+                    // This action returns a private copy-ready block; clipboard write is not possible server-side.
+                    text: blocks.newPlainTextObject('Show copy-ready sample'),
                     value: encodedActionPayload,
                 }),
                 blocks.newButtonElement({
                     actionId: SLASH_CARD_ACTION.SHARE_SAMPLE,
                     text: blocks.newPlainTextObject('Share sample'),
+                    value: encodedActionPayload,
+                }),
+                blocks.newButtonElement({
+                    actionId: SLASH_CARD_ACTION.SHARE_ELSEWHERE,
+                    text: blocks.newPlainTextObject('Share elsewhere'),
                     value: encodedActionPayload,
                 }),
             ],
@@ -287,6 +296,13 @@ export class LogsSlashCommand implements ISlashCommand {
         triageSummary: QuickTriageSummary,
     ): Promise<SlashCardActionPayload> {
         const sampleOutput = triageSummary.sampleOutput.slice(0, QUICK_SAMPLE_OUTPUT_MAX_LINES);
+        // Keep action payload compact for button reliability; rich lines are loaded from persisted snapshot.
+        const inlineFallbackSample = sampleOutput
+            .slice(0, QUICK_SAMPLE_OUTPUT_FALLBACK_LINES)
+            .map((line) => ({
+                ...line,
+                text: this.compactText(line.text, QUICK_SAMPLE_OUTPUT_INLINE_FALLBACK_TEXT_MAX),
+            }));
         const payload: SlashCardActionPayload = {
             version: 1,
             roomId: context.getRoom().id,
@@ -297,7 +313,8 @@ export class LogsSlashCommand implements ISlashCommand {
             filterSummary,
             preset,
             sampleTotalCount: triageSummary.sampleLineCount ?? sampleOutput.length,
-            sampleOutput: [],
+            // Keep a tiny inline fallback so old cards still have minimal evidence if snapshot lookup fails.
+            sampleOutput: inlineFallbackSample,
         };
 
         if (sampleOutput.length === 0) {
@@ -327,7 +344,7 @@ export class LogsSlashCommand implements ISlashCommand {
             }
         }
 
-        payload.sampleOutput = sampleOutput.slice(0, QUICK_SAMPLE_OUTPUT_FALLBACK_LINES);
+        payload.sampleOutput = inlineFallbackSample;
         return payload;
     }
 
@@ -525,7 +542,7 @@ export class LogsSlashCommand implements ISlashCommand {
             // Expose only a small evidence window in chat; deeper inspection stays in full UI.
             const sampleOutput = entries.slice(0, QUICK_SAMPLE_OUTPUT_MAX_LINES).map((entry) => ({
                 level: entry.level,
-                text: `${entry.timestamp ? `${entry.timestamp} ` : ''}${entry.preview}`,
+                text: `${entry.timestamp ? `${entry.timestamp} ` : ''}${entry.lineText}`,
             }));
 
             return {
@@ -659,6 +676,7 @@ export class LogsSlashCommand implements ISlashCommand {
                     level,
                     signal: this.extractSignalText(message),
                     preview: this.extractPreviewText(message),
+                    lineText: this.extractSampleLineText(message),
                     timestamp,
                 });
             }
@@ -820,6 +838,16 @@ export class LogsSlashCommand implements ISlashCommand {
         }
 
         return this.compactText(compact, 160);
+    }
+
+    private extractSampleLineText(message: string): string {
+        const compact = message.replace(/\s+/g, ' ').trim();
+        if (!compact) {
+            return '[empty]';
+        }
+
+        // Slash copy/share should preserve richer evidence than the compact sidebar preview.
+        return this.compactText(compact, QUICK_SAMPLE_OUTPUT_LINE_TEXT_MAX);
     }
 
     private compactSignal(value: string): string {
