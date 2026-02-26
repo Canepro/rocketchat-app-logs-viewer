@@ -5,8 +5,8 @@ App API contract for Logs Viewer.
 Base path:
 
 - Browser client default candidate paths:
-  - `/api/apps/public/<appId>`
-  - `/api/apps/private/<appId>` (compatibility fallback on `404`)
+  - `/api/apps/private/<appId>`
+  - `/api/apps/public/<appId>` (compatibility fallback on `404`)
 - For local web dev, `VITE_ROCKETCHAT_APP_API_BASE_PATH` can override the base path and is attempted before built-in fallbacks.
 
 Current endpoint paths are:
@@ -25,8 +25,9 @@ Non-endpoint behavior note:
 - Near-real-time updates are currently implemented as UI polling on `POST /query` (no dedicated `/stream` endpoint yet).
 - `/logs` slash command uses private response surfaces (contextual bar primary, user notification fallback).
 - Slash triage sample sizing policy:
-  - in-chat sidebar preview up to `20` lines
-  - copy/share action payload up to `50` lines
+  - in-chat sidebar preview up to `25` lines
+  - copy/share chat output up to `60` lines
+  - slash-card button values carry compact snapshot references (sample lines are resolved from per-user persisted snapshots)
 
 Compatibility note:
 

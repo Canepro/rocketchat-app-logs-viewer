@@ -17,12 +17,21 @@ All notable changes to this project are documented in this file.
 - Packaging/deploy scripts now use `rc-apps` native compiler mode.
 - `/logs` command responses are now private to the invoking user (private contextual bar primary path, user-only notification fallback), with no room-visible output message.
 - `/logs` private quick triage summary now includes timestamped sample output lines:
-  - sidebar preview up to 20 lines
-  - copy/share action payload up to 50 lines
+  - sidebar preview up to 25 lines
+  - copy/share chat output up to 60 lines
 - `/logs` private slash card now includes in-chat actions:
   - `Copy sample` for private copy-ready evidence output
   - `Share sample` to publish sampled lines to the current room/thread with audit logging
 - Slash summary severity detection now maps common numeric JSON levels (for example 20/30/35/40/50) to semantic levels for higher signal.
+- Slash summary sample output now renders as a numbered code block for faster in-chat scanning and ticket paste accuracy.
+- Slash summary preview now applies a chat-size safety cap to avoid oversized contextual-bar block payloads.
+- Query results panel readability baseline improved for large payload triage:
+  - pretty/raw message view toggle
+  - wrap on/off control
+  - per-row expand/collapse
+  - per-row copy line action
+  - row metadata chips (line/char count + structured marker)
+- Browser app API candidate resolution now prefers private endpoint first with public fallback to reduce expected local `404` probe noise.
 
 ### Fixed
 
@@ -30,6 +39,9 @@ All notable changes to this project are documented in this file.
   - `@rocket.chat/apps-engine` manifest lookup mismatch (must be under `devDependencies`)
   - workspace monorepo file scanning (non-app `web/**` and `tests/**` paths now ignored via `.rcappsconfig`)
 - Hardened slash-card action reliability by resolving user/room context server-side when interaction payload fields are incomplete.
+- Hardened slash-card action reliability by persisting per-user sample snapshots and using compact snapshot references in button payloads.
+- Added stale snapshot fail-safe guidance in action responses (`Run /logs again`) instead of silent copy/share failures.
+- Enforced slash sample snapshot TTL at read-time to prevent stale snapshot reuse after long idle periods.
 
 ### Security
 

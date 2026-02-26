@@ -2,7 +2,7 @@
 
 Status handoff for continuing implementation without drift.
 
-Last updated: 2026-02-25
+Last updated: 2026-02-26
 
 ## 1. Current status
 
@@ -44,10 +44,19 @@ Last updated: 2026-02-25
     - `app_logs` fallback (`/api/apps/logs`)
   - In-chat-first slash workflow hardening:
     - private contextual-bar summary with timestamped sample output
-    - sample sizing policy: preview up to 20, copy/share payload up to 50
+    - sample sizing policy: preview up to 25, copy/share chat output up to 60
+    - persisted slash sample snapshots (up to 80 lines) with compact button payload references
     - private slash-card actions: `Copy sample`, `Share sample`
     - audited share action from slash-card flow
     - server-side user/room resolution for cross-client interaction reliability
+  - Web deep-inspection readability baseline:
+    - pretty/raw rendering toggle
+    - wrap on/off toggle
+    - per-row expand/collapse
+    - per-row copy line action
+    - row metadata chips for message triage (`chars`, `lines`, structured marker, preview marker)
+  - API probe noise reduction baseline:
+    - web client now resolves app API candidates private-first, then public fallback on `404`
   - Numeric severity fallback mapping in slash summary for common JSON numeric levels (for example 20/30/35/40/50)
   - `/query` payload parsing hardening to prefer request body over unrelated URL query context
   - `/config` readiness payload including source mode + actionable readiness issues
@@ -80,15 +89,8 @@ Most recent local verification passed:
 
 Primary next step (Phase 2 continuation):
 
-1. After in-chat baseline, ship web deep-inspection readability hardening:
-   - expandable row details for long/structured lines
-   - pretty/raw rendering toggle for JSON-style content
-   - triage affordances (copy line, wrap toggle, clearer metadata display)
-2. Reduce non-actionable local endpoint probe noise:
-   - private-first probe strategy when runtime context indicates private app API
-   - keep fallback behavior explicit and documented.
-3. Keep polling-only for v1 baseline and avoid stream implementation in this release scope.
-4. If needed, open a server-push stream spike (SSE/WebSocket) as v1.1 planning only: contract + threat model first.
+1. Keep polling-only for v1 baseline and avoid stream implementation in this release scope.
+2. If needed, open a server-push stream spike (SSE/WebSocket) as v1.1 planning only: contract + threat model first.
 
 Secondary next step:
 
