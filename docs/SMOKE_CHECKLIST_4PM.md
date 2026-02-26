@@ -22,6 +22,23 @@ Validate `v0.1.1` candidate behavior end-to-end in a live Rocket.Chat workspace 
    - one allowed operator
    - one denied user
 
+## 2.1 Pre-filled run metadata (update at execution time)
+
+| Field | Value |
+|------|-------|
+| Date | `2026-02-26` |
+| Planned start | `16:00 local` |
+| Branch | `feature/v0.1.1-in-chat-ux` |
+| Candidate artifact | `dist/logs-viewer_0.1.0.zip` |
+| Artifact SHA256 | `d62ccc206a9e79667ca40e60198d5734dff294b5bdedb469330a9cab2bffbf37` |
+| Evidence root | `evidence/2026-02-26-v0.1.1-smoke/` |
+| Allowed user | `TBD` |
+| Denied user | `TBD` |
+| Target room | `TBD` |
+| Target thread | `TBD` |
+| Workspace URL | `TBD` |
+| Workspace version (`/api/info`) | `TBD` |
+
 ## 3. Scenarios
 
 ## 3.1 `/logs` privacy + open path
@@ -99,15 +116,15 @@ Expected:
 
 ## 4. Pass/Fail Record
 
-| Check | Result | Evidence |
-|------|--------|----------|
-| Slash privacy | `PASS/FAIL` | screenshot/log |
-| Summary readability | `PASS/FAIL` | screenshot |
-| Copy sample | `PASS/FAIL` | screenshot/log |
-| Share sample + audit | `PASS/FAIL` | screenshot/log |
-| Stale snapshot fail-safe | `PASS/FAIL` | screenshot/log |
-| Web readability controls | `PASS/FAIL` | screenshot/video |
-| Private-first probe behavior | `PASS/FAIL` | network capture |
+| Check | Result | Evidence | Notes |
+|------|--------|----------|-------|
+| Slash privacy | `PENDING` | `evidence/2026-02-26-v0.1.1-smoke/screenshots/` | |
+| Summary readability | `PENDING` | `evidence/2026-02-26-v0.1.1-smoke/screenshots/` | |
+| Copy sample | `PENDING` | `evidence/2026-02-26-v0.1.1-smoke/screenshots/` | |
+| Share sample + audit | `PENDING` | `evidence/2026-02-26-v0.1.1-smoke/screenshots/`, `evidence/2026-02-26-v0.1.1-smoke/app-logs/` | |
+| Stale snapshot fail-safe | `PENDING` | `evidence/2026-02-26-v0.1.1-smoke/screenshots/` | |
+| Web readability controls | `PENDING` | `evidence/2026-02-26-v0.1.1-smoke/screenshots/` | |
+| Private-first probe behavior | `PENDING` | `evidence/2026-02-26-v0.1.1-smoke/network/` | |
 
 ## 5. Evidence Collection
 
@@ -121,6 +138,18 @@ Capture:
    - web readability controls
 4. DevTools network excerpt for API base resolution.
 5. App logs around action click times.
+
+Recommended filenames:
+
+1. `screenshots/01-slash-private.png`
+2. `screenshots/02-summary-preview.png`
+3. `screenshots/03-copy-sample.png`
+4. `screenshots/04-share-sample-audit.png`
+5. `screenshots/05-stale-snapshot.png`
+6. `screenshots/06-web-readability-controls.png`
+7. `network/01-private-first-probe.har` (or screenshot if HAR unavailable)
+8. `app-logs/01-action-window.log`
+9. `notes/run-notes.md`
 
 ## 6. Exit Criteria
 

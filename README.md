@@ -159,6 +159,7 @@ For implementation details and next steps, see:
 - **[docs/GITHUB_PUSH_PLAN.md](./docs/GITHUB_PUSH_PLAN.md)** — branch/commit/PR/tag checklist for clean repository publishing.
 - **[docs/SMOKE_CHECKLIST_4PM.md](./docs/SMOKE_CHECKLIST_4PM.md)** — live post-start validation run-sheet for cluster smoke.
 - **[docs/RELEASE_NOTES_v0.1.1_DRAFT.md](./docs/RELEASE_NOTES_v0.1.1_DRAFT.md)** — draft release notes and acceptance criteria for next cut.
+- **[docs/PR_DESCRIPTION_v0.1.1_DRAFT.md](./docs/PR_DESCRIPTION_v0.1.1_DRAFT.md)** — prepared PR body template for review/submission.
 - **[CHANGELOG.md](./CHANGELOG.md)** — release history and unreleased change tracking.
 - **[docs/RBAC_REVIEW.md](./docs/RBAC_REVIEW.md)** — permission-mode hardening review and failure-mode matrix.
 - **[docs/EXECUTION_PLAN.md](./docs/EXECUTION_PLAN.md)** — enterprise delivery phases, quality gates, and definition-of-done.
