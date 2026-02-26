@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { AlertCircle, Database, History, Search } from 'lucide-react';
+import { Database, FileText, History, Search } from 'lucide-react';
 
+import { EmptyState } from '@/components/EmptyState';
+import { ErrorState } from '@/components/ErrorState';
+import { LoadingState } from '@/components/LoadingState';
+import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 import {
   DEFAULT_POLLING_INTERVAL_SECONDS,
   MAX_POLLING_INTERVAL_SECONDS,
@@ -62,12 +69,6 @@ const outcomeOptions: Array<{ label: string; value: AuditOutcome }> = [
   { label: 'Denied', value: 'denied' },
 ];
 
-const inputBaseClass =
-  'h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2';
-
-const selectBaseClass = `${inputBaseClass} pr-8`;
-
-const labelClass = 'text-xs font-medium uppercase tracking-wide text-muted-foreground';
 const ENTRY_PREVIEW_MAX_LINES = 6;
 const ENTRY_PREVIEW_MAX_CHARS = 520;
 const ENTRY_LABELS_PREVIEW_COUNT = 6;
@@ -888,34 +889,33 @@ export function App() {
   );
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-8 md:px-8">
-        <header className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">UI wired</Badge>
-            <Badge variant="secondary">React + Vite</Badge>
-            <Badge variant="outline">App API: {runtime.appId}</Badge>
-            <Badge variant={isPolling ? 'secondary' : 'outline'}>
-              {isPolling ? `live: every ${pollIntervalSec}s` : 'live: off'}
-            </Badge>
-            {prefill.context.source ? <Badge variant="outline">source: {prefill.context.source}</Badge> : null}
-            {prefill.preset ? <Badge variant="secondary">preset: {prefill.preset}</Badge> : null}
-            {prefill.autorun ? <Badge variant="secondary">autorun</Badge> : null}
+    <main className="min-h-screen bg-background text-foreground" role="main">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:py-8 lg:px-8">
+        <header className="flex flex-col gap-3 border-b border-border pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Logs Viewer</h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={isPolling ? 'secondary' : 'outline'}>
+                {isPolling ? `Live ${pollIntervalSec}s` : 'Off'}
+              </Badge>
+              {prefill.preset ? <Badge variant="secondary">{prefill.preset}</Badge> : null}
+              {prefill.autorun ? <Badge variant="outline">Autorun</Badge> : null}
+              {prefill.context.source ? <Badge variant="outline">{prefill.context.source}</Badge> : null}
+            </div>
           </div>
-          <h1 className="text-3xl font-semibold tracking-tight">Rocket.Chat Logs Viewer</h1>
-          <p className="max-w-4xl text-sm text-muted-foreground">
-            This UI queries app API endpoints and never talks to Loki directly. Base path: <code>{runtime.privateApiBase}</code>
+          <p className="text-sm text-muted-foreground">
+            Query logs via the app API. Default range: {configQuery.data?.config.defaultTimeRange ?? '—'} · Max lines: {configQuery.data?.config.maxLinesPerQuery ?? '—'}
           </p>
         </header>
 
         {prefill.context.roomId || prefill.context.threadId ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Slash context</CardTitle>
-              <CardDescription>Context propagated through the generated deep link.</CardDescription>
+          <Card className="border-primary/20">
+            <CardHeader className="py-3">
+              <CardTitle className="text-sm font-medium">From /logs</CardTitle>
+              <CardDescription className="text-xs">Room and thread context for row actions.</CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-              {prefill.context.roomName ? <Badge variant="outline">room: {prefill.context.roomName}</Badge> : null}
+            <CardContent className="flex flex-wrap gap-2 py-0 text-xs text-muted-foreground">
+              {prefill.context.roomName ? <Badge variant="outline">{prefill.context.roomName}</Badge> : null}
               {prefill.context.roomId ? <Badge variant="outline">roomId: {prefill.context.roomId}</Badge> : null}
               {prefill.context.threadId ? <Badge variant="outline">threadId: {prefill.context.threadId}</Badge> : null}
               {prefill.context.senderId ? <Badge variant="outline">senderId: {prefill.context.senderId}</Badge> : null}
@@ -924,19 +924,11 @@ export function App() {
         ) : null}
 
         {configError ? (
-          <Card className="border-red-300">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <AlertCircle className="h-4 w-4" />
-                Config load failed
-              </CardTitle>
-              <CardDescription>
-                {isPrivateApiError(configError)
-                  ? `${configError.message} (HTTP ${configError.status})`
-                  : 'Unexpected error while loading /config.'}
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          <ErrorState
+            title="Config unavailable"
+            message={isPrivateApiError(configError) ? `${configError.message} (HTTP ${configError.status})` : 'Could not load app config.'}
+            details={isPrivateApiError(configError) ? formatErrorDetails(configError.details) ?? undefined : undefined}
+          />
         ) : null}
 
         <section className="grid gap-4 lg:grid-cols-[2fr_1fr]">
@@ -950,81 +942,74 @@ export function App() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                <label className="space-y-1">
-                  <span className={labelClass}>Time mode</span>
-                  <select className={selectBaseClass} value={timeMode} onChange={(event) => setTimeMode(event.target.value as 'relative' | 'absolute')}>
+                <div className="space-y-1.5">
+                  <Label htmlFor="time-mode">Time mode</Label>
+                  <Select id="time-mode" value={timeMode} onChange={(e) => setTimeMode(e.target.value as 'relative' | 'absolute')}>
                     <option value="relative">Relative</option>
                     <option value="absolute">Absolute</option>
-                  </select>
-                </label>
+                  </Select>
+                </div>
 
                 {timeMode === 'relative' ? (
-                  <label className="space-y-1">
-                    <span className={labelClass}>Since</span>
-                    <input className={inputBaseClass} value={since} onChange={(event) => setSince(event.target.value)} placeholder="15m" />
-                  </label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="since">Since</Label>
+                    <Input id="since" value={since} onChange={(e) => setSince(e.target.value)} placeholder="15m" />
+                  </div>
                 ) : (
                   <>
-                    <label className="space-y-1">
-                      <span className={labelClass}>Start</span>
-                      <input
-                        className={inputBaseClass}
-                        type="datetime-local"
-                        value={startAt}
-                        onChange={(event) => setStartAt(event.target.value)}
-                      />
-                    </label>
-                    <label className="space-y-1">
-                      <span className={labelClass}>End</span>
-                      <input className={inputBaseClass} type="datetime-local" value={endAt} onChange={(event) => setEndAt(event.target.value)} />
-                    </label>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="start">Start</Label>
+                      <Input id="start" type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="end">End</Label>
+                      <Input id="end" type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} />
+                    </div>
                   </>
                 )}
 
-                <label className="space-y-1">
-                  <span className={labelClass}>Limit</span>
-                  <input className={inputBaseClass} type="number" min={1} value={limit} onChange={(event) => setLimit(event.target.value)} />
-                </label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="limit">Limit</Label>
+                  <Input id="limit" type="number" min={1} value={limit} onChange={(e) => setLimit(e.target.value)} />
+                </div>
 
-                <label className="space-y-1">
-                  <span className={labelClass}>Level</span>
-                  <select className={selectBaseClass} value={level} onChange={(event) => setLevel(event.target.value as QueryLevel | '')}>
+                <div className="space-y-1.5">
+                  <Label htmlFor="level">Level</Label>
+                  <Select id="level" value={level} onChange={(e) => setLevel(e.target.value as QueryLevel | '')}>
                     <option value="">Any</option>
-                    {levelOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
+                    {levelOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
-                  </select>
-                </label>
+                  </Select>
+                </div>
 
-                <label className="space-y-1 sm:col-span-2 xl:col-span-1">
-                  <span className={labelClass}>Search</span>
-                  <input
-                    className={inputBaseClass}
+                <div className="space-y-1.5 sm:col-span-2 xl:col-span-1">
+                  <Label htmlFor="search">Search</Label>
+                  <Input
+                    id="search"
                     value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
+                    onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder="Optional text filter"
                   />
-                </label>
+                </div>
 
-                <label className="space-y-1">
-                  <span className={labelClass}>Polling interval (sec)</span>
-                  <input
-                    className={inputBaseClass}
+                <div className="space-y-1.5">
+                  <Label htmlFor="poll-interval">Polling (sec)</Label>
+                  <Input
+                    id="poll-interval"
                     type="number"
                     min={MIN_POLLING_INTERVAL_SECONDS}
                     max={MAX_POLLING_INTERVAL_SECONDS}
                     value={pollIntervalSec}
-                    onChange={(event) => setPollIntervalSec(event.target.value)}
+                    onChange={(e) => setPollIntervalSec(e.target.value)}
                     placeholder={String(DEFAULT_POLLING_INTERVAL_SECONDS)}
                   />
-                </label>
+                </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
                 <Button disabled={logsMutation.isPending || !configQuery.isSuccess} onClick={executeQuery}>
-                  {logsMutation.isPending ? 'Running query...' : 'Run query'}
+                  {logsMutation.isPending ? 'Running…' : 'Run query'}
                 </Button>
                 <Button variant="secondary" disabled={isPolling || !configQuery.isSuccess} onClick={startPolling}>
                   Start live polling
@@ -1032,37 +1017,30 @@ export function App() {
                 <Button variant="outline" disabled={!isPolling} onClick={stopPolling}>
                   Stop live polling
                 </Button>
-                <Badge variant="outline">default range: {configQuery.data?.config.defaultTimeRange || 'n/a'}</Badge>
-                <Badge variant="outline">max lines: {configQuery.data?.config.maxLinesPerQuery || 'n/a'}</Badge>
-                <Badge variant="outline">source mode: {configQuery.data?.config.sourceMode || 'loki'}</Badge>
-                <Badge variant={isPolling ? 'secondary' : 'outline'}>poll ticks: {pollingTickCount}</Badge>
+                <Badge variant="outline">{configQuery.data?.config.sourceMode ?? 'loki'}</Badge>
+                {isPolling ? <Badge variant="secondary">Ticks: {pollingTickCount}</Badge> : null}
               </div>
 
               {configQuery.data?.config.readiness && !configQuery.data.config.readiness.ready ? (
-                <div className="space-y-1 rounded-md border border-amber-300 bg-amber-50 p-2 text-sm text-amber-800">
-                  <p className="font-medium">Source readiness warnings</p>
-                  <ul className="list-disc pl-5">
+                <Alert variant="warning">
+                  <p className="font-medium">Source readiness</p>
+                  <ul className="mt-1 list-disc pl-5 text-sm">
                     {configQuery.data.config.readiness.issues.map((issue) => (
                       <li key={issue}>{issue}</li>
                     ))}
                   </ul>
-                </div>
+                </Alert>
               ) : null}
 
-              {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
-              {pollingError ? <p className="text-sm text-red-600">{pollingError}</p> : null}
+              {formError ? <Alert variant="destructive">{formError}</Alert> : null}
+              {pollingError ? <Alert variant="destructive">{pollingError}</Alert> : null}
 
               {queryError ? (
-                <div className="space-y-1 text-sm text-red-600">
-                  <p>
-                    {isPrivateApiError(queryError)
-                      ? `${queryError.message} (HTTP ${queryError.status})`
-                      : 'Unexpected error while querying logs.'}
-                  </p>
-                  {isPrivateApiError(queryError) && formatErrorDetails(queryError.details) ? (
-                    <p className="break-all text-xs text-red-700">details: {formatErrorDetails(queryError.details)}</p>
-                  ) : null}
-                </div>
+                <ErrorState
+                  title="Query failed"
+                  message={isPrivateApiError(queryError) ? `${queryError.message} (HTTP ${queryError.status})` : 'Query failed.'}
+                  details={isPrivateApiError(queryError) ? formatErrorDetails(queryError.details) ?? undefined : undefined}
+                />
               ) : null}
 
               {logsMutation.data ? (
@@ -1085,52 +1063,44 @@ export function App() {
               <CardDescription>Reads app endpoint <code>/audit</code>.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <label className="space-y-1">
-                <span className={labelClass}>User ID</span>
-                <input
-                  className={inputBaseClass}
-                  value={auditUserId}
-                  onChange={(event) => setAuditUserId(event.target.value)}
-                  placeholder="Optional"
-                />
-              </label>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="audit-user">User ID</Label>
+                  <Input id="audit-user" value={auditUserId} onChange={(e) => setAuditUserId(e.target.value)} placeholder="Optional" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="audit-outcome">Outcome</Label>
+                  <Select id="audit-outcome" value={auditOutcome} onChange={(e) => setAuditOutcome(e.target.value as AuditOutcome | '')}>
+                    <option value="">Any</option>
+                    {outcomeOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="audit-limit">Limit</Label>
+                  <Input id="audit-limit" type="number" min={1} value={auditLimit} onChange={(e) => setAuditLimit(e.target.value)} />
+                </div>
+              </div>
 
-              <label className="space-y-1">
-                <span className={labelClass}>Outcome</span>
-                <select className={selectBaseClass} value={auditOutcome} onChange={(event) => setAuditOutcome(event.target.value as AuditOutcome | '')}>
-                  <option value="">Any</option>
-                  {outcomeOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="space-y-1">
-                <span className={labelClass}>Limit</span>
-                <input className={inputBaseClass} type="number" min={1} value={auditLimit} onChange={(event) => setAuditLimit(event.target.value)} />
-              </label>
-
-              <Button variant="outline" onClick={() => setAuditNonce((value) => value + 1)}>
+              <Button variant="outline" onClick={() => setAuditNonce((v) => v + 1)}>
                 Refresh audit
               </Button>
 
-              {auditQuery.isPending ? <p className="text-sm text-muted-foreground">Loading audit...</p> : null}
+              {auditQuery.isPending ? <LoadingState message="Loading audit…" /> : null}
 
               {auditError ? (
-                <p className="text-sm text-red-600">
-                  {isPrivateApiError(auditError)
-                    ? `${auditError.message} (HTTP ${auditError.status})`
-                    : 'Unexpected error while loading audit.'}
-                </p>
+                <ErrorState
+                  title="Audit load failed"
+                  message={isPrivateApiError(auditError) ? `${auditError.message} (HTTP ${auditError.status})` : 'Could not load audit.'}
+                />
               ) : null}
 
-              <p className="text-sm text-muted-foreground">total entries: {auditQuery.data?.meta.total ?? 0}</p>
+              <p className="text-xs text-muted-foreground">Entries: {auditQuery.data?.meta.total ?? 0}</p>
 
               <div className="max-h-72 overflow-auto rounded-md border">
                 {(auditQuery.data?.entries || []).length === 0 ? (
-                  <p className="p-3 text-sm text-muted-foreground">No audit entries.</p>
+                  <EmptyState title="No audit entries" description="Run queries or actions to see audit trail." />
                 ) : (
                   <ul className="divide-y">
                     {auditQuery.data?.entries.map((entry, index) => (
@@ -1160,22 +1130,22 @@ export function App() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
-              <label className="space-y-1 sm:col-span-2">
-                <span className={labelClass}>Saved view name</span>
-                <input
-                  className={inputBaseClass}
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="saved-view-name">Saved view name</Label>
+                <Input
+                  id="saved-view-name"
                   value={savedViewName}
-                  onChange={(event) => {
-                    setSavedViewName(event.target.value);
+                  onChange={(e) => {
+                    setSavedViewName(e.target.value);
                     setSavedViewError(null);
                     setSavedViewSuccess(null);
                   }}
-                  placeholder="Example: Last 30m errors"
+                  placeholder="e.g. Last 30m errors"
                 />
-              </label>
+              </div>
               <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
                 <Button size="sm" disabled={savedViewMutation.isPending} onClick={createSavedView}>
-                  {savedViewMutation.isPending ? 'Saving...' : 'Save current as new'}
+                  {savedViewMutation.isPending ? 'Saving…' : 'Save as new'}
                 </Button>
                 <Button size="sm" variant="secondary" disabled={savedViewMutation.isPending || !selectedSavedViewId} onClick={updateSavedView}>
                   Update selected
@@ -1183,27 +1153,31 @@ export function App() {
                 <Button size="sm" variant="outline" disabled={savedViewMutation.isPending || !selectedSavedViewId} onClick={deleteSavedView}>
                   Delete selected
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => setViewsNonce((value) => value + 1)}>
-                  Refresh list
+                <Button size="sm" variant="outline" onClick={() => setViewsNonce((v) => v + 1)}>
+                  Refresh
                 </Button>
-                {selectedSavedView ? <Badge variant="outline">selected: {selectedSavedView.name}</Badge> : null}
+                {selectedSavedView ? <Badge variant="outline">{selectedSavedView.name}</Badge> : null}
               </div>
-              {savedViewSuccess ? <p className="text-sm text-emerald-700 sm:col-span-2">{savedViewSuccess}</p> : null}
-              {savedViewError ? <p className="text-sm text-red-600 sm:col-span-2">{savedViewError}</p> : null}
+              {savedViewSuccess ? <Alert variant="success" className="sm:col-span-2">{savedViewSuccess}</Alert> : null}
+              {savedViewError ? <Alert variant="destructive" className="sm:col-span-2">{savedViewError}</Alert> : null}
               {viewsError ? (
-                <p className="text-sm text-red-600 sm:col-span-2">
-                  {isPrivateApiError(viewsError)
-                    ? `${viewsError.message} (HTTP ${viewsError.status})`
-                    : 'Unexpected error while loading saved views.'}
-                </p>
+                <ErrorState
+                  className="sm:col-span-2"
+                  title="Saved views"
+                  message={isPrivateApiError(viewsError) ? `${viewsError.message} (HTTP ${viewsError.status})` : 'Could not load saved views.'}
+                />
               ) : null}
-              {viewsQuery.isPending ? <p className="text-sm text-muted-foreground sm:col-span-2">Loading saved views...</p> : null}
+              {viewsQuery.isPending ? <LoadingState message="Loading saved views…" className="sm:col-span-2" /> : null}
               <p className="text-xs text-muted-foreground sm:col-span-2">
-                saved views: {viewsQuery.data?.views.meta.returned ?? 0} / {viewsQuery.data?.views.meta.total ?? 0}
+                {viewsQuery.data?.views.meta.returned ?? 0} / {viewsQuery.data?.views.meta.total ?? 0} views
               </p>
               <div className="max-h-40 overflow-auto rounded-md border sm:col-span-2">
                 {availableSavedViews.length === 0 ? (
-                  <p className="p-3 text-sm text-muted-foreground">No saved views yet. Configure filters and save one.</p>
+                  <EmptyState
+                    icon={<FileText className="h-8 w-8" />}
+                    title="No saved views"
+                    description="Set filters and save current query as a view."
+                  />
                 ) : (
                   <ul className="divide-y">
                     {availableSavedViews.map((view) => {
@@ -1248,39 +1222,37 @@ export function App() {
             <CardDescription>Virtualized rendering for large responses and Rocket.Chat-native row actions.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="mb-4 grid gap-3 rounded-md border p-3 sm:grid-cols-2">
-              <label className="space-y-1 sm:col-span-2">
-                <span className={labelClass}>Room target search</span>
+            <div className="mb-4 grid gap-3 rounded-lg border border-border bg-muted/20 p-4 sm:grid-cols-2">
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="room-search">Room target</Label>
                 <div className="flex gap-2">
-                  <input
-                    className={inputBaseClass}
+                  <Input
+                    id="room-search"
                     value={roomSearch}
-                    onChange={(event) => setRoomSearch(event.target.value)}
-                    placeholder="Search by room name, display name, or id"
+                    onChange={(e) => setRoomSearch(e.target.value)}
+                    placeholder="Search by room name or id"
                   />
-                  <Button size="sm" variant="outline" onClick={() => setTargetsNonce((value) => value + 1)}>
+                  <Button size="sm" variant="outline" onClick={() => setTargetsNonce((v) => v + 1)}>
                     Refresh
                   </Button>
                 </div>
-              </label>
+              </div>
 
               <div className="sm:col-span-2">
-                {targetsQuery.isPending ? <p className="text-sm text-muted-foreground">Loading room targets...</p> : null}
+                {targetsQuery.isPending ? <LoadingState message="Loading rooms…" /> : null}
                 {targetsError ? (
-                  <p className="text-sm text-red-600">
-                    {isPrivateApiError(targetsError)
-                      ? `${targetsError.message} (HTTP ${targetsError.status})`
-                      : 'Unexpected error while loading room targets.'}
-                  </p>
+                  <ErrorState
+                    message={isPrivateApiError(targetsError) ? `${targetsError.message} (HTTP ${targetsError.status})` : 'Could not load room targets.'}
+                  />
                 ) : null}
                 {!targetsQuery.isPending && !targetsError ? (
                   <p className="text-xs text-muted-foreground">
-                    targets loaded: {targetsQuery.data?.targets.meta.returned ?? 0} / {targetsQuery.data?.targets.meta.total ?? 0}
+                    {targetsQuery.data?.targets.meta.returned ?? 0} / {targetsQuery.data?.targets.meta.total ?? 0} rooms
                   </p>
                 ) : null}
                 <div className="mt-2 max-h-28 overflow-auto rounded-md border">
                   {availableRoomTargets.length === 0 ? (
-                    <p className="p-2 text-xs text-muted-foreground">No matching room targets. Use manual room ID below if needed.</p>
+                    <EmptyState title="No rooms" description="Use manual room ID below or refine search." className="py-4" />
                   ) : (
                     <div className="flex flex-wrap gap-2 p-2">
                       {availableRoomTargets.slice(0, 30).map((target) => {
@@ -1302,67 +1274,57 @@ export function App() {
                 </div>
               </div>
 
-              <label className="space-y-1">
-                <span className={labelClass}>Action target room ID</span>
-                <input
-                  className={inputBaseClass}
+              <div className="space-y-1.5">
+                <Label htmlFor="action-room-id">Room ID</Label>
+                <Input
+                  id="action-room-id"
                   value={actionRoomId}
-                  onChange={(event) => {
-                    const nextRoomId = event.target.value;
-                    const previousRoomId = normalizedActionRoomId;
-                    setActionRoomId(nextRoomId);
-                    if (nextRoomId.trim() !== previousRoomId) {
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    if (next.trim() !== normalizedActionRoomId) {
                       setActionThreadId('');
                       setThreadSearch('');
                     }
+                    setActionRoomId(next);
                     setActionError(null);
                     setActionSuccess(null);
                   }}
-                  placeholder="Required (prefilled from /logs context when available)"
+                  placeholder="Required for row actions"
                 />
-              </label>
-              <label className="space-y-1 sm:col-span-2">
-                <span className={labelClass}>Thread target search (selected room)</span>
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="thread-search">Thread (in selected room)</Label>
                 <div className="flex gap-2">
-                  <input
-                    className={inputBaseClass}
+                  <Input
+                    id="thread-search"
                     value={threadSearch}
-                    onChange={(event) => setThreadSearch(event.target.value)}
-                    placeholder={isRoomTargetReady ? 'Search by thread preview or message id' : 'Select room first'}
+                    onChange={(e) => setThreadSearch(e.target.value)}
+                    placeholder={isRoomTargetReady ? 'Search threads' : 'Select room first'}
                     disabled={!isRoomTargetReady}
                   />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!isRoomTargetReady}
-                    onClick={() => setThreadsNonce((value) => value + 1)}
-                  >
+                  <Button size="sm" variant="outline" disabled={!isRoomTargetReady} onClick={() => setThreadsNonce((v) => v + 1)}>
                     Refresh
                   </Button>
                 </div>
-              </label>
+              </div>
               <div className="sm:col-span-2">
-                {!isRoomTargetReady ? <p className="text-sm text-muted-foreground">Select a target room to load thread targets.</p> : null}
-                {isRoomTargetReady && threadsQuery.isPending ? (
-                  <p className="text-sm text-muted-foreground">Loading thread targets...</p>
-                ) : null}
+                {!isRoomTargetReady ? <p className="text-xs text-muted-foreground">Select a room to load threads.</p> : null}
+                {isRoomTargetReady && threadsQuery.isPending ? <LoadingState message="Loading threads…" /> : null}
                 {isRoomTargetReady && threadsError ? (
-                  <p className="text-sm text-red-600">
-                    {isPrivateApiError(threadsError)
-                      ? `${threadsError.message} (HTTP ${threadsError.status})`
-                      : 'Unexpected error while loading thread targets.'}
-                  </p>
+                  <ErrorState
+                    message={isPrivateApiError(threadsError) ? `${threadsError.message} (HTTP ${threadsError.status})` : 'Could not load threads.'}
+                  />
                 ) : null}
                 {isRoomTargetReady && !threadsQuery.isPending && !threadsError ? (
                   <p className="text-xs text-muted-foreground">
-                    threads loaded: {threadsQuery.data?.threads.meta.returned ?? 0} / {threadsQuery.data?.threads.meta.total ?? 0}
+                    {threadsQuery.data?.threads.meta.returned ?? 0} / {threadsQuery.data?.threads.meta.total ?? 0} threads
                   </p>
                 ) : null}
                 <div className="mt-2 max-h-36 overflow-auto rounded-md border">
                   {!isRoomTargetReady ? (
-                    <p className="p-2 text-xs text-muted-foreground">Thread target list appears after a room is selected.</p>
+                    <EmptyState title="Select room" description="Choose a room to see threads." className="py-4" />
                   ) : availableThreadTargets.length === 0 ? (
-                    <p className="p-2 text-xs text-muted-foreground">No matching threads. You can still enter thread ID manually below.</p>
+                    <EmptyState title="No threads" description="Enter thread ID below or refine search." className="py-4" />
                   ) : (
                     <div className="flex flex-wrap gap-2 p-2">
                       {availableThreadTargets.slice(0, 40).map((target) => {
@@ -1386,19 +1348,19 @@ export function App() {
                   )}
                 </div>
               </div>
-              <label className="space-y-1">
-                <span className={labelClass}>Action target thread ID</span>
-                <input
-                  className={inputBaseClass}
+              <div className="space-y-1.5">
+                <Label htmlFor="action-thread-id">Thread ID</Label>
+                <Input
+                  id="action-thread-id"
                   value={actionThreadId}
-                  onChange={(event) => {
-                    setActionThreadId(event.target.value);
+                  onChange={(e) => {
+                    setActionThreadId(e.target.value);
                     setActionError(null);
                     setActionSuccess(null);
                   }}
                   placeholder="Optional"
                 />
-              </label>
+              </div>
               <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
                 <Button size="sm" variant="outline" disabled={!canUseSlashRoomTarget} onClick={applySlashRoomTarget}>
                   Use slash room target
@@ -1422,26 +1384,30 @@ export function App() {
                 Share/Incident/Thread-note actions post into this room/thread through app endpoint <code>/actions</code>. Access and denials are audit
                 logged. <code>thread_note</code> requires a thread target.
               </p>
-              {actionSuccess ? <p className="text-sm text-emerald-700 sm:col-span-2">{actionSuccess}</p> : null}
-              {actionError ? <p className="text-sm text-red-600 sm:col-span-2">{actionError}</p> : null}
+              {actionSuccess ? <Alert variant="success" className="sm:col-span-2">{actionSuccess}</Alert> : null}
+              {actionError ? <Alert variant="destructive" className="sm:col-span-2">{actionError}</Alert> : null}
             </div>
 
             {entries.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No results yet. Run a query to load logs.</p>
+              <EmptyState
+                icon={<Search className="h-10 w-10" />}
+                title="No results"
+                description="Set time range, level, and filters above, then run a query."
+              />
             ) : (
               <>
-                <div className="mb-3 grid gap-3 rounded-md border p-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <label className="space-y-1">
-                    <span className={labelClass}>Message view</span>
-                    <select
-                      className={selectBaseClass}
+                <div className="mb-3 grid gap-3 rounded-lg border border-border bg-muted/20 p-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="message-view">Message view</Label>
+                    <Select
+                      id="message-view"
                       value={messageViewMode}
-                      onChange={(event) => setMessageViewMode(event.target.value as 'raw' | 'pretty')}
+                      onChange={(e) => setMessageViewMode(e.target.value as 'raw' | 'pretty')}
                     >
-                      <option value="pretty">Pretty (JSON-aware)</option>
+                      <option value="pretty">Pretty (JSON)</option>
                       <option value="raw">Raw</option>
-                    </select>
-                  </label>
+                    </Select>
+                  </div>
                   <div className="flex items-end">
                     <Button size="sm" variant={wrapLogLines ? 'secondary' : 'outline'} onClick={() => setWrapLogLines((value) => !value)}>
                       {wrapLogLines ? 'Wrap: on' : 'Wrap: off'}
@@ -1460,7 +1426,7 @@ export function App() {
                     <Badge variant="outline">expanded: {expandedRowCount}</Badge>
                   </div>
                   {copyRowError ? (
-                    <p className="text-sm text-red-600 sm:col-span-2 lg:col-span-4">{copyRowError}</p>
+                    <Alert variant="destructive" className="sm:col-span-2 lg:col-span-4">{copyRowError}</Alert>
                   ) : null}
                 </div>
 
@@ -1500,7 +1466,7 @@ export function App() {
                           </div>
 
                           <pre
-                            className={`mt-2 rounded-md border bg-muted/20 p-2 text-xs ${
+                            className={`font-mono-log mt-2 rounded-md border bg-muted/20 p-2 text-xs ${
                               wrapLogLines ? 'whitespace-pre-wrap break-words' : 'whitespace-pre overflow-x-auto'
                             }`}
                           >

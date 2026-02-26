@@ -4,15 +4,36 @@
 
 :root {
   --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
+  --foreground: 222.2 47% 11%;
   --card: 0 0% 100%;
-  --card-foreground: 222.2 84% 4.9%;
+  --card-foreground: 222.2 47% 11%;
   --primary: 221.2 83.2% 53.3%;
   --primary-foreground: 210 40% 98%;
   --muted: 210 40% 96.1%;
   --muted-foreground: 215.4 16.3% 46.9%;
   --border: 214.3 31.8% 91.4%;
-  --radius: 0.75rem;
+  --radius: 0.5rem;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --success: 142 71% 45%;
+  --success-foreground: 0 0% 98%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 0 0% 98%;
+}
+
+.dark {
+  --background: 222.2 47% 11%;
+  --foreground: 210 40% 98%;
+  --card: 222.2 47% 14%;
+  --card-foreground: 210 40% 98%;
+  --primary: 217.2 91% 60%;
+  --primary-foreground: 222.2 47% 11%;
+  --muted: 217.2 33% 17%;
+  --muted-foreground: 215 20% 65%;
+  --border: 217.2 33% 22%;
+  --destructive: 0 63% 51%;
+  --success: 142 71% 45%;
+  --warning: 38 92% 50%;
 }
 
 * {
@@ -22,6 +43,10 @@
 body {
   margin: 0;
   @apply bg-background text-foreground antialiased;
-  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
 }
 
+/* Log content: monospace for scanability */
+.font-mono-log {
+  font-family: "IBM Plex Mono", "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+}
