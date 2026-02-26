@@ -94,12 +94,14 @@ Slash response visibility behavior:
 - The command does not post a room-visible message in channel/group/team contexts.
 - The private response includes a quick triage summary (source mode, window, sampled line count, top levels, top signals, and bounded timestamped sample output lines).
 - Sidebar preview shows up to 25 sampled lines (truncated for scan speed), and may be further reduced by a chat-size safety cap.
-- `Copy sample` and `Share sample` render up to 60 sampled lines in chat for high-signal incident handoff.
+- `Copy sample` and `Share sample` render up to 40 sampled lines in chat using full-line-priority mode (fewer lines, richer line text).
 - Slash-card actions are snapshot-backed (persisted per user) to avoid large button payload failures.
 - In `app_logs` source mode, quick sample output is intentionally unavailable in slash response; use Open Logs Viewer for full query.
 - In-chat-first actions are available directly in the private slash card:
-  - `Copy sample`: sends a private copy-ready block of sampled lines.
+  - `Show copy-ready sample`: sends a private copy-ready block of sampled lines.
+    - Rocket.Chat Apps cannot write to the local OS clipboard directly; users copy from the returned block.
   - `Share sample`: posts sampled lines into the current room/thread with audit logging.
+  - `Share elsewhere`: opens a private modal to share sampled lines to another room (ID or name) the user can access, with optional thread ID and audit logging.
 
 New workspace quickstart (operator + first user):
 
