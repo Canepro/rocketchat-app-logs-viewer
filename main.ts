@@ -9,7 +9,7 @@ import { UIKitBlockInteractionContext } from '@rocket.chat/apps-engine/definitio
 
 import { createAppApi } from './src/api';
 import { LogsSlashCommand } from './src/commands/LogsSlashCommand';
-import { handleSlashCardBlockAction } from './src/commands/slashCardActionHandler';
+import { handleSlashCardBlockAction, handleSlashCardViewSubmit } from './src/commands/slashCardActionHandler';
 import { EXTERNAL_COMPONENT } from './src/constants';
 import { settings } from './src/settings';
 
@@ -47,6 +47,18 @@ export class LogsViewerApp extends App implements IUIKitInteractionHandler {
         const interaction = context.getInteractionData();
         // Centralized handler keeps slash-card actions private-by-default and role-audited.
         await handleSlashCardBlockAction(this.getID(), interaction, read, modify, persistence);
+        return context.getInteractionResponder().successResponse();
+    }
+
+    public async [AppMethod.UIKIT_VIEW_SUBMIT](
+        context: Parameters<NonNullable<IUIKitInteractionHandler[typeof AppMethod.UIKIT_VIEW_SUBMIT]>>[0],
+        read: Parameters<NonNullable<IUIKitInteractionHandler[typeof AppMethod.UIKIT_VIEW_SUBMIT]>>[1],
+        _http: Parameters<NonNullable<IUIKitInteractionHandler[typeof AppMethod.UIKIT_VIEW_SUBMIT]>>[2],
+        persistence: Parameters<NonNullable<IUIKitInteractionHandler[typeof AppMethod.UIKIT_VIEW_SUBMIT]>>[3],
+        modify: Parameters<NonNullable<IUIKitInteractionHandler[typeof AppMethod.UIKIT_VIEW_SUBMIT]>>[4],
+    ): Promise<IUIKitResponse> {
+        const interaction = context.getInteractionData();
+        await handleSlashCardViewSubmit(this.getID(), interaction, read, modify, persistence);
         return context.getInteractionResponder().successResponse();
     }
 }
