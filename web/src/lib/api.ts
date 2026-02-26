@@ -216,9 +216,11 @@ const publicAppApiPath = `/api/apps/public/${appId}`;
 // Local proxy mode is only used when explicit dev auth headers are provided.
 // Without those headers, keep direct-origin calls so existing Rocket.Chat cookies can authenticate requests.
 const useLocalDevProxy = import.meta.env.DEV && apiOrigin.length > 0 && hasDevAuthHeaders;
+// Prefer private app API first because this UI targets private app endpoints.
+// Public path remains as fallback for compatibility across workspace deployments.
 const rawBasePathCandidates = configuredApiBasePath
-  ? [configuredApiBasePath, publicAppApiPath, privateAppApiPath]
-  : [publicAppApiPath, privateAppApiPath];
+  ? [configuredApiBasePath, privateAppApiPath, publicAppApiPath]
+  : [privateAppApiPath, publicAppApiPath];
 
 const resolveApiBaseCandidate = (pathOrUrl: string): string => {
   if (/^https?:\/\//i.test(pathOrUrl)) {
