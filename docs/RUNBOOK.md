@@ -102,6 +102,7 @@ Run this smoke suite after install or upgrade:
    - Slash card buttons are visible and functional for allowed user:
      - `Copy sample` sends private response.
      - `Share sample` posts evidence to room/thread and writes audit entry.
+     - `Share elsewhere` opens private modal and posts to target room/thread (membership-validated) with audit entry.
 2. Query check:
    - Relative query returns results or empty success response.
    - Oversized limit/time range is rejected by guardrails.
@@ -135,7 +136,7 @@ Validated in active environments during implementation:
 4. `app_logs` source mode worked as expected as operational fallback.
 5. Rocket.Chat pod logs can be high-volume and repetitive during active UI/admin usage:
    - keep sidebar preview concise for scan speed (25 lines)
-   - allow larger copy/share evidence payload for incident handoff (up to 60 lines)
+   - use full-line-priority copy/share evidence rendering (up to 40 lines) for incident handoff
    - keep slash action payload small by relying on persisted per-user sample snapshots
 
 Operator takeaway:
@@ -254,6 +255,23 @@ Notes:
 
 - `Copy sample` is always private.
 - `Share sample` is room/thread-visible and audited.
+- Clipboard writes are not possible from Rocket.Chat Apps block actions; `Copy sample` returns a private copy-ready block.
+- If logs show `error-message-size-exceeded`, sample output exceeded workspace message-size limits; use the latest build with automatic chat-size truncation.
+
+## 7.9 Share elsewhere failures
+
+Symptom: submit from `Share elsewhere` modal does not post evidence.
+
+Checks:
+
+1. Confirm target room is accessible by the acting user (membership required).
+2. If target uses room name, verify exact display/slug spelling.
+3. If target thread ID is provided, verify it belongs to the selected room.
+4. If app reports request expired, rerun `/logs` and reopen `Share elsewhere`.
+5. Check app logs for:
+   - `room_access_denied`
+   - `thread_invalid`
+   - `publish_failed`
 
 ## 7.6 Packaging and release build failures
 

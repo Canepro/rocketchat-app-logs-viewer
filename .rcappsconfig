@@ -3,6 +3,7 @@
     "web/**",
     "tests/**",
     "docs/**",
+    "evidence/**",
     "DESIGN.md",
     "CHANGELOG.md"
   ]

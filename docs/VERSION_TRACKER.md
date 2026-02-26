@@ -10,7 +10,7 @@ Last updated: 2026-02-26
 - Current packaged artifact name: `logs-viewer_0.1.0.zip`
 - Release state:
   - `0.1.0` is the current baseline pre-release version.
-  - Additional features implemented after baseline are tracked in `CHANGELOG.md` under `Unreleased` until next cut.
+  - `CHANGELOG.md` has been cut for `0.1.1-pre` (tag-ready), while `app.json` remains `0.1.0` until version bump.
 
 ## 2. Released versions
 
@@ -18,18 +18,19 @@ Last updated: 2026-02-26
 |---------|------|--------|------------------|
 | `0.1.0` | 2026-02-25 | Pre-release | Core app scaffold, `/logs` command, `/query` `/audit` `/targets` `/threads` `/views` `/actions`, RBAC modes, redaction, rate limit, audit, saved views, polling, row actions, foundational docs and tests |
 
-## 3. Unreleased (candidate next release)
+## 3. 0.1.1-pre candidate scope
 
-Current `Unreleased` scope in `CHANGELOG.md` includes:
+Current `0.1.1-pre` scope in `CHANGELOG.md` includes:
 
 - Private in-chat `/logs` response semantics (no room-visible slash output).
 - Slash contextual-bar quick triage summary with timestamped sample output.
 - In-chat-first actions from slash card:
-  - `Copy sample` (private evidence block)
+  - `Show copy-ready sample` (private evidence block)
   - `Share sample` (room/thread evidence + audit)
+  - `Share elsewhere` (private modal for target room/thread evidence + audit)
 - Sample sizing policy:
   - sidebar preview up to `25` lines (with chat-size safety cap)
-  - copy/share chat output up to `60` lines
+  - copy/share chat output up to `40` lines in full-line-priority mode
 - Slash-card action payload reliability hardening:
   - per-user persisted sample snapshots
   - compact snapshot ID references in button payloads
@@ -46,12 +47,14 @@ Current `Unreleased` scope in `CHANGELOG.md` includes:
   - browser app API path resolution changed to private-first with public fallback
 - Reliability hardening for slash-card actions:
   - server-side user/room resolution for interaction handling
+  - safe optional read for `Message_MaxAllowedSize`
+  - UIKit view-submit handling for share-elsewhere modal with room/thread validation
 - Numeric severity fallback mapping for common JSON numeric levels in slash summary.
 - Packaging hardening and expanded docs/process governance updates.
 
 Release manager note:
 
-- Keep these items in `Unreleased` until a new version is cut and `app.json` is bumped.
+- Next cut to stable should bump `app.json` to `0.1.1` and regenerate package/tag.
 
 ## 4. Next version recommendation
 

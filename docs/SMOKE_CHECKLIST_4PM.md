@@ -28,13 +28,14 @@ Validate `v0.1.1` candidate behavior end-to-end in a live Rocket.Chat workspace 
 |------|-------|
 | Date | `2026-02-26` |
 | Planned start | `16:00 local` |
+| Actual start | `16:17 local` |
 | Branch | `feature/v0.1.1-in-chat-ux` |
 | Candidate artifact | `dist/logs-viewer_0.1.0.zip` |
-| Artifact SHA256 | `d62ccc206a9e79667ca40e60198d5734dff294b5bdedb469330a9cab2bffbf37` |
+| Artifact SHA256 | `b14a8b0719ad3e86ff8ca1d6fd292d580fa2bcc0d39522bd5501dd475bbaff40` |
 | Evidence root | `evidence/2026-02-26-v0.1.1-smoke/` |
-| Allowed user | `TBD` |
+| Allowed user | `canepro` (observed in screenshot) |
 | Denied user | `TBD` |
-| Target room | `TBD` |
+| Target room | `Support_Stuff` |
 | Target thread | `TBD` |
 | Workspace URL | `TBD` |
 | Workspace version (`/api/info`) | `TBD` |
@@ -72,11 +73,15 @@ Expected:
 2. Confirm private copy-ready block is returned.
 3. Click `Share sample`.
 4. Confirm room/thread post succeeds.
-5. Confirm audit contains corresponding action.
+5. Click `Share elsewhere`.
+6. In modal, set target room (ID or name), optional thread ID, and submit.
+7. Confirm target room/thread post succeeds.
+8. Confirm audit contains corresponding action.
 
 Expected:
 - Copy is private.
 - Share is room/thread-visible and audited.
+- Share elsewhere is target room/thread-visible (membership-validated) and audited.
 - Success message includes displayed/total line counts.
 
 ## 3.4 Stale snapshot behavior
@@ -118,10 +123,10 @@ Expected:
 
 | Check | Result | Evidence | Notes |
 |------|--------|----------|-------|
-| Slash privacy | `PENDING` | `evidence/2026-02-26-v0.1.1-smoke/screenshots/` | |
-| Summary readability | `PENDING` | `evidence/2026-02-26-v0.1.1-smoke/screenshots/` | |
-| Copy sample | `PENDING` | `evidence/2026-02-26-v0.1.1-smoke/screenshots/` | |
-| Share sample + audit | `PENDING` | `evidence/2026-02-26-v0.1.1-smoke/screenshots/`, `evidence/2026-02-26-v0.1.1-smoke/app-logs/` | |
+| Slash privacy | `PASS` | `screenshots/Screenshot_side_view.png` | Private contextual bar shows "Only you can see this /logs response". |
+| Summary readability | `PASS` | `screenshots/Screenshot_side_view.png` | Numbered preview, top levels/signals, and chat-size cap note visible. |
+| Copy sample | `PASS` | `screenshots/Screenshot_copy.png` | Private copy-ready sample message rendered in room context as user-only action response. |
+| Share sample + audit | `FAIL (diagnosed)` | `evidence/2026-02-26-v0.1.1-smoke/network/k8.canepro.me_from the workspaace2.har`, `evidence/2026-02-26-v0.1.1-smoke/network/k8.canepro.me_from the workspaace3.har` | Two root causes confirmed in Rocket.Chat logs: `error-message-size-exceeded` and then `Setting "Message_MaxAllowedSize" does not exist.`. Fixes implemented in current branch (chat-size-aware truncation + safe optional setting read); re-smoke required. |
 | Stale snapshot fail-safe | `PENDING` | `evidence/2026-02-26-v0.1.1-smoke/screenshots/` | |
 | Web readability controls | `PENDING` | `evidence/2026-02-26-v0.1.1-smoke/screenshots/` | |
 | Private-first probe behavior | `PENDING` | `evidence/2026-02-26-v0.1.1-smoke/network/` | |
