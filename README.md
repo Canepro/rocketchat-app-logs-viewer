@@ -53,13 +53,15 @@ Out of scope:
 - Web UI: React + Vite + Tailwind + shadcn-style primitives
 - Tests: Bun test + TypeScript typecheck
 
-## Quickstart
+## Quickstart (first deployment)
 
 ### Prerequisites
 
-- Bun installed
-- Rocket.Chat workspace with private app upload enabled
-- Loki endpoint (for `logs_source_mode=loki`)
+- Bun installed (`bun --version`)
+- Rocket.Chat workspace where you can install private apps
+- For Loki mode: Loki query endpoint reachable from Rocket.Chat runtime
+- A hosted web URL for the external component (do not use `http://localhost:5173` for shared environments)
+- Recommended default: serve web UI at `https://<rocketchat-host>/logs-viewer/` (same-origin)
 
 ### Local build and checks
 
@@ -71,24 +73,58 @@ bun run build
 bun run package
 ```
 
-### Deploy package to workspace
+This produces a deployable artifact in `dist/` (`logs-viewer_<version>.zip`).
+
+### Deploy package to Rocket.Chat workspace
+
+Option A (CLI):
 
 ```bash
 bun run deploy
 ```
 
+Option B (Admin UI upload):
+
+1. Open Rocket.Chat Administration.
+2. Go to Apps/Marketplace private app upload page (label can vary by Rocket.Chat version).
+3. Upload `dist/logs-viewer_<version>.zip`.
+4. Enable the app.
+
+### Sync web assets for same-origin hosting (optional helper)
+
+```bash
+bun run deploy:web -- --target /srv/rocketchat/logs-viewer
+```
+
 ## Core settings (operator)
 
-Required baseline:
+Minimum required values after install:
+
 - `logs_source_mode`
-- `required_label_selector`
 - `allowed_roles`
 - `workspace_permission_mode`
 - `workspace_permission_code`
+- `external_component_url` (must be reachable by end-user browsers)
 
 Loki mode additionally requires:
+- `required_label_selector`
 - `loki_base_url`
 - optional auth (`loki_username`, `loki_token`)
+
+`app_logs` mode note:
+- `required_label_selector` is ignored for query execution in `app_logs` mode.
+
+Starter production-safe examples:
+
+- `logs_source_mode=loki`
+- `required_label_selector={job="rocketchat"}`
+- `allowed_roles=admin,log-viewer`
+- `workspace_permission_mode=strict`
+- `workspace_permission_code=view-logs`
+- `external_component_url=https://<rocketchat-host>/logs-viewer/`
+
+First-time operator path (recommended): [`docs/DEPLOYMENT_QUICKSTART.md`](docs/DEPLOYMENT_QUICKSTART.md)
+Same-origin setup reference: [`docs/SAME_ORIGIN_SETUP.md`](docs/SAME_ORIGIN_SETUP.md)
 
 ## Security posture
 
@@ -102,6 +138,8 @@ Loki mode additionally requires:
 ## Documentation map
 
 Start with:
+- [`docs/DEPLOYMENT_QUICKSTART.md`](docs/DEPLOYMENT_QUICKSTART.md)
+- [`docs/SAME_ORIGIN_SETUP.md`](docs/SAME_ORIGIN_SETUP.md)
 - [`docs/README.md`](docs/README.md)
 - [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md)
 - [`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md)

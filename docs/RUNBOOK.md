@@ -2,7 +2,7 @@
 
 Operational runbook for installing, validating, operating, and rolling back the Logs Viewer app.
 
-Last updated: 2026-02-26
+Last updated: 2026-02-27
 
 ## 1. Scope
 
@@ -30,6 +30,17 @@ Reference profiles: `docs/OPERATOR_PROFILES.md`.
 
 ## 3. Installation and upgrade
 
+For first-time setup, follow `docs/DEPLOYMENT_QUICKSTART.md` first, then return here for operations cadence/rollback.
+
+## 3.0 Preflight (do this before touching production)
+
+1. Confirm target package exists: `ls -lh dist/logs-viewer_*.zip`
+2. Confirm app setting plan is prepared (especially `external_component_url` and selector).
+   - Recommended default: `https://<rocketchat-host>/logs-viewer/`
+   - Setup reference: `docs/SAME_ORIGIN_SETUP.md`
+3. Confirm one allowed test user and one denied test user are ready.
+4. Confirm rollback artifact/version is available.
+
 ## 3.1 Build and package
 
 1. Install dependencies: `bun install`
@@ -45,9 +56,12 @@ Packaging implementation notes:
 
 ## 3.2 Deploy
 
-1. Deploy package to target Rocket.Chat workspace (CLI or UI package upload flow).
-2. Confirm app status is `enabled`.
-3. Confirm app version matches expected release.
+Use one deployment path:
+
+1. CLI path: run `bun run deploy` and complete `rc-apps` prompts.
+2. Admin UI path: upload `dist/logs-viewer_<version>.zip` in Rocket.Chat private app upload screen.
+3. Confirm app status is `enabled`.
+4. Confirm app version matches expected release.
 
 ## 3.3 Configure settings
 
@@ -73,6 +87,28 @@ Set required settings immediately after deploy:
    - `redaction_replacement`
 
 Start from the production profile and only relax settings intentionally.
+
+Recommended minimum values for first production boot:
+
+```text
+logs_source_mode=loki
+loki_base_url=https://<loki-host-or-observability-gateway>
+required_label_selector={job="rocketchat"}
+external_component_url=https://<rocketchat-host>/logs-viewer/
+allowed_roles=admin,log-viewer
+workspace_permission_mode=strict
+workspace_permission_code=view-logs
+```
+
+If running without Loki, set:
+
+```text
+logs_source_mode=app_logs
+external_component_url=https://<rocketchat-host>/logs-viewer/
+allowed_roles=admin,log-viewer
+workspace_permission_mode=strict
+workspace_permission_code=view-logs
+```
 
 Source mode notes:
 
@@ -258,7 +294,7 @@ Notes:
 - Clipboard writes are not possible from Rocket.Chat Apps block actions; `Show copy-ready sample` returns a private copy-ready block.
 - If logs show `error-message-size-exceeded`, sample output exceeded workspace message-size limits; use the latest build with automatic chat-size truncation.
 
-## 7.9 Share elsewhere failures
+## 7.6 Share elsewhere failures
 
 Symptom: submit from `Share elsewhere` modal does not post evidence.
 
@@ -273,7 +309,7 @@ Checks:
    - `thread_invalid`
    - `publish_failed`
 
-## 7.6 Packaging and release build failures
+## 7.7 Packaging and release build failures
 
 Symptom: `bun run package` fails with compiler/module resolution errors.
 
@@ -292,7 +328,7 @@ Expected warning:
 
 - `No package-lock.json found` is expected in this Bun-first setup and is not a package failure by itself.
 
-## 7.7 Local development CORS failures
+## 7.8 Local development CORS failures
 
 Symptom: browser console shows `No 'Access-Control-Allow-Origin' header` for calls from `http://localhost:5173` to Rocket.Chat app API.
 
@@ -314,7 +350,7 @@ Checks:
    - `VITE_ROCKETCHAT_APP_API_BASE_PATH=<exact-base-path>`
 4. Restart dev server after changing any `VITE_*` variables or `web/vite.config.ts`.
 
-## 7.8 High `[unknown]` level ratio in slash summary
+## 7.9 High `[unknown]` level ratio in slash summary
 
 Symptom: slash sample lines frequently show level `[unknown]`.
 
