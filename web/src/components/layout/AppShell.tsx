@@ -19,7 +19,7 @@ export interface AppShellProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
   /** When true, viewport is narrow and sidebar is shown as overlay (drawer). When false, sidebar is inline (desktop). */
   isDrawerMode?: boolean;
-  /** Sidebar visible. In drawer mode: false = hidden, true = overlay open. In inline mode: ignored (always shown). */
+  /** Sidebar visible in both modes. Drawer: false = hidden, true = overlay open. Inline: false = collapsed, true = shown. */
   sidebarOpen?: boolean;
   /** Called when user closes the sidebar (drawer mode). Pass to Filters button and drawer close. */
   onSidebarOpenChange?: (open: boolean) => void;
@@ -90,7 +90,7 @@ export const AppShell = React.forwardRef<HTMLDivElement, AppShellProps>(
               {sidebar}
             </aside>
           ) : null}
-          <main className="min-w-0 flex-1 overflow-hidden" role="main">
+          <main className="min-w-0 flex min-h-0 flex-1 flex-col overflow-hidden" role="main">
             {children}
           </main>
         </div>

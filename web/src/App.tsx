@@ -1513,14 +1513,17 @@ export function App() {
         </div>
       }
     >
-      {configError ? (
-        <ErrorState
-          title="Config unavailable"
-          message={configErrorMessage}
-          details={isPrivateApiError(configError) ? formatErrorDetails(configError.details) ?? undefined : undefined}
-        />
-      ) : null}
-      <div className="flex h-full min-h-0 flex-col p-4 md:p-6">
+      <div className="flex min-h-0 flex-1 flex-col">
+        {configError ? (
+          <div className="shrink-0 px-4 pt-4 md:px-6 md:pt-6">
+            <ErrorState
+              title="Config unavailable"
+              message={configErrorMessage}
+              details={isPrivateApiError(configError) ? formatErrorDetails(configError.details) ?? undefined : undefined}
+            />
+          </div>
+        ) : null}
+        <div className="flex min-h-0 flex-1 flex-col p-4 md:p-6">
         {entries.length === 0 ? (
           <EmptyState
             icon={<Search className="h-10 w-10" />}
@@ -1672,7 +1675,8 @@ export function App() {
                   </div>
                 </div>
               </>
-            )}
+        )}
+        </div>
       </div>
     </AppShell>
   );
