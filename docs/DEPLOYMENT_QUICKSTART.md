@@ -71,7 +71,7 @@ Use one of these options:
    - use `http://localhost:5173` with `bun run dev:web`
    - not suitable for shared/team usage
 
-Same-origin setup examples: [`docs/SAME_ORIGIN_SETUP.md`](docs/SAME_ORIGIN_SETUP.md)
+Same-origin setup examples: [`SAME_ORIGIN_SETUP.md`](SAME_ORIGIN_SETUP.md)
 Helper script for web asset sync: `bun run deploy:web -- --target <server-path>`
 
 ## 4. Deploy the package
@@ -113,7 +113,6 @@ external_component_url=https://<rocketchat-host>/logs-viewer/
 
 ```text
 logs_source_mode=app_logs
-required_label_selector={job="rocketchat"}
 allowed_roles=admin,log-viewer
 workspace_permission_mode=strict
 workspace_permission_code=view-logs
@@ -125,6 +124,7 @@ Notes:
 - `loki_base_url` should be host/base only. Do not append `/loki/api/v1/query_range`.
 - Keep `workspace_permission_mode=strict` for production.
 - `required_label_selector` must match real labels in your Loki data.
+- `required_label_selector` is ignored in `app_logs` mode.
 
 ## 6. Assign permission and role access
 
@@ -149,6 +149,6 @@ If these checks pass, deployment is ready for broader operator use.
 
 Start with:
 
-1. [`docs/RUNBOOK.md`](docs/RUNBOOK.md) (install/troubleshooting/rollback)
-2. [`docs/OPERATOR_PROFILES.md`](docs/OPERATOR_PROFILES.md) (hardened setting bundles)
-3. [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) (workflow and common errors)
+1. [`RUNBOOK.md`](RUNBOOK.md) (install/troubleshooting/rollback)
+2. [`OPERATOR_PROFILES.md`](OPERATOR_PROFILES.md) (hardened setting bundles)
+3. [`USER_GUIDE.md`](USER_GUIDE.md) (workflow and common errors)

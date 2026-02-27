@@ -51,7 +51,7 @@ You need your reverse proxy/web server to serve `resources/web/` at `/logs-viewe
 
 ```nginx
 location /logs-viewer/ {
-    alias /srv/rocketchat-app-logs-viewer/resources/web/;
+    alias /srv/rocketchat/logs-viewer/;
     index index.html;
     try_files $uri $uri/ /logs-viewer/index.html;
 }
@@ -66,7 +66,7 @@ Notes:
 
 ```caddyfile
 handle_path /logs-viewer/* {
-    root * /srv/rocketchat-app-logs-viewer/resources/web
+    root * /srv/rocketchat/logs-viewer
     try_files {path} /index.html
     file_server
 }

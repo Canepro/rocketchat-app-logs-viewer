@@ -101,15 +101,18 @@ bun run deploy:web -- --target /srv/rocketchat/logs-viewer
 Minimum required values after install:
 
 - `logs_source_mode`
-- `required_label_selector`
 - `allowed_roles`
 - `workspace_permission_mode`
 - `workspace_permission_code`
 - `external_component_url` (must be reachable by end-user browsers)
 
 Loki mode additionally requires:
+- `required_label_selector`
 - `loki_base_url`
 - optional auth (`loki_username`, `loki_token`)
+
+`app_logs` mode note:
+- `required_label_selector` is ignored for query execution in `app_logs` mode.
 
 Starter production-safe examples:
 
