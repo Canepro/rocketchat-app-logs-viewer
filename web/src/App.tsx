@@ -211,6 +211,15 @@ const formatErrorDetails = (details: unknown): string | null => {
   }
 };
 
+const truncateMiddle = (value: string, maxLength: number): string => {
+  if (value.length <= maxLength || maxLength < 7) {
+    return value;
+  }
+
+  const edge = Math.floor((maxLength - 3) / 2);
+  return `${value.slice(0, edge)}...${value.slice(-edge)}`;
+};
+
 const formatMessageForDisplay = (message: string, mode: 'raw' | 'pretty'): { text: string; isStructured: boolean } => {
   if (mode === 'raw') {
     return { text: message, isStructured: false };
@@ -929,42 +938,66 @@ export function App() {
       sidebarOpen={sidebarVisible}
       onSidebarOpenChange={setSidebarOpen}
       header={
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-6">
-          <div className="flex items-center gap-2">
-            {!isDesktop ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setSidebarOpen(true)}
-                aria-label="Open filters and controls"
-              >
-                <Filter className="h-4 w-4 mr-1.5" aria-hidden />
-                Filters
-              </Button>
-            ) : null}
-            <h1 className="text-xl font-semibold tracking-tight md:text-2xl">Logs Viewer</h1>
+        <div className="grid gap-3 px-4 py-3 md:px-6 md:py-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              {!isDesktop ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSidebarOpen(true)}
+                  aria-label="Open filters and controls"
+                >
+                  <Filter className="mr-1.5 h-4 w-4" aria-hidden />
+                  Filters
+                </Button>
+              ) : null}
+              <div className="min-w-0">
+                <h1 className="text-xl font-semibold tracking-tight md:text-2xl">Logs Viewer</h1>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Query logs through app APIs with Rocket.Chat-native guardrails.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <ThemeToggle />
+              <Badge variant={isPolling ? 'secondary' : 'outline'}>
+                {isPolling ? `Live ${pollIntervalSec}s` : 'Off'}
+              </Badge>
+              {prefill.preset ? <Badge variant="secondary">{prefill.preset}</Badge> : null}
+              {prefill.autorun ? <Badge variant="outline">Autorun</Badge> : null}
+              {prefill.context.source ? <Badge variant="outline">{prefill.context.source}</Badge> : null}
+            </div>
           </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span>Default range: {configQuery.data?.config.defaultTimeRange ?? '—'}</span>
+            <span aria-hidden>|</span>
+            <span>Max lines: {configQuery.data?.config.maxLinesPerQuery ?? '—'}</span>
+          </div>
+
           <div className="flex flex-wrap items-center gap-2">
-            <ThemeToggle />
-            <Badge variant={isPolling ? 'secondary' : 'outline'}>
-              {isPolling ? `Live ${pollIntervalSec}s` : 'Off'}
+            <Badge
+              variant="outline"
+              className="max-w-full font-mono text-[11px]"
+              title={runtime.appId}
+            >
+              App: {truncateMiddle(runtime.appId, 26)}
             </Badge>
-            {prefill.preset ? <Badge variant="secondary">{prefill.preset}</Badge> : null}
-            {prefill.autorun ? <Badge variant="outline">Autorun</Badge> : null}
-            {prefill.context.source ? <Badge variant="outline">{prefill.context.source}</Badge> : null}
-          </div>
-          <p className="text-xs text-muted-foreground w-full mt-1">
-            Default range: {configQuery.data?.config.defaultTimeRange ?? '—'} · Max lines: {configQuery.data?.config.maxLinesPerQuery ?? '—'}
-          </p>
-          <div className="mt-1 flex flex-wrap items-center gap-2 w-full">
-            <Badge variant="outline">App: {runtime.appId}</Badge>
-            <Badge variant="outline">API: {runtime.privateApiBase}</Badge>
+            <Badge
+              variant="outline"
+              className="max-w-full font-mono text-[11px]"
+              title={runtime.privateApiBase}
+            >
+              API: {truncateMiddle(runtime.privateApiBase, 64)}
+            </Badge>
           </div>
         </div>
       }
       sidebar={
-        <div className="flex flex-col gap-5 p-5 text-[13px] leading-5">
+        <div className="flex flex-col gap-5 p-6 text-sm leading-[1.45]">
           {prefill.context.roomId || prefill.context.threadId ? (
           <Card className="border-primary/20 shadow-sm">
             <CardHeader className="py-3">

@@ -3,15 +3,15 @@
 @tailwind utilities;
 
 :root {
-  --background: 198 36% 97%;
-  --foreground: 214 34% 16%;
+  --background: 40 22% 96%;
+  --foreground: 218 16% 18%;
   --card: 0 0% 100%;
-  --card-foreground: 214 34% 16%;
-  --primary: 174 84% 37%;
-  --primary-foreground: 210 40% 98%;
-  --muted: 197 32% 93%;
-  --muted-foreground: 212 19% 41%;
-  --border: 204 30% 84%;
+  --card-foreground: 218 16% 18%;
+  --primary: 164 56% 34%;
+  --primary-foreground: 42 22% 96%;
+  --muted: 40 16% 90%;
+  --muted-foreground: 218 10% 38%;
+  --border: 32 13% 80%;
   --radius: 0.5rem;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 98%;
@@ -19,31 +19,31 @@
   --success-foreground: 0 0% 98%;
   --warning: 38 92% 50%;
   --warning-foreground: 0 0% 98%;
-  --shell-glow-primary: 182 89% 43%;
-  --shell-glow-secondary: 205 92% 55%;
-  /* Log message surface: high-contrast monospace block (light theme) */
-  --log-surface-bg: 210 48% 11%;
-  --log-surface-fg: 210 40% 98%;
+  --shell-glow-primary: 38 78% 62%;
+  --shell-glow-secondary: 163 42% 42%;
+  /* Log message surface: high-contrast monospace block (light theme). */
+  --log-surface-bg: 221 16% 13%;
+  --log-surface-fg: 40 19% 94%;
 }
 
 .dark {
-  --background: 213 58% 11%;
-  --foreground: 210 40% 98%;
-  --card: 214 52% 15%;
-  --card-foreground: 210 40% 98%;
-  --primary: 173 76% 44%;
-  --primary-foreground: 222.2 47% 11%;
-  --muted: 214 38% 19%;
-  --muted-foreground: 211 20% 73%;
-  --border: 214 31% 27%;
+  --background: 220 19% 11%;
+  --foreground: 40 19% 93%;
+  --card: 220 17% 14%;
+  --card-foreground: 40 19% 93%;
+  --primary: 163 47% 46%;
+  --primary-foreground: 220 18% 10%;
+  --muted: 220 12% 20%;
+  --muted-foreground: 216 11% 72%;
+  --border: 220 10% 30%;
   --destructive: 0 63% 51%;
   --success: 142 71% 45%;
   --warning: 38 92% 50%;
-  --shell-glow-primary: 173 84% 34%;
-  --shell-glow-secondary: 202 94% 44%;
-  /* Log message surface (dark theme): slightly lighter than card for contrast */
-  --log-surface-bg: 211 46% 9%;
-  --log-surface-fg: 210 40% 98%;
+  --shell-glow-primary: 39 79% 48%;
+  --shell-glow-secondary: 163 48% 35%;
+  /* Log message surface (dark theme): neutral charcoal for reduced eye strain. */
+  --log-surface-bg: 220 13% 8%;
+  --log-surface-fg: 40 19% 93%;
 }
 
 * {
@@ -56,12 +56,12 @@ body {
   font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
 }
 
-/* Distinct observability shell: cyan/blue glow over deep-surface background. */
+/* Distinct observability shell: warm/neutral glow over a sober base. */
 .app-shell-surface {
   background:
-    radial-gradient(1100px 460px at 0% -5%, hsl(var(--shell-glow-primary) / 0.28), transparent 62%),
-    radial-gradient(980px 420px at 100% -10%, hsl(var(--shell-glow-secondary) / 0.2), transparent 60%),
-    hsl(var(--background));
+    radial-gradient(1080px 450px at 0% -8%, hsl(var(--shell-glow-primary) / 0.2), transparent 62%),
+    radial-gradient(940px 420px at 100% -12%, hsl(var(--shell-glow-secondary) / 0.16), transparent 60%),
+    linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--background)) 100%);
 }
 
 /* Log content: monospace for scanability */

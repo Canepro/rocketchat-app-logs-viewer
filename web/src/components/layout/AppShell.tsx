@@ -51,23 +51,23 @@ export const AppShell = React.forwardRef<HTMLDivElement, AppShellProps>(
         )}
         {...props}
       >
-        <header className="shrink-0 border-b border-border/80 bg-card/90 shadow-sm backdrop-blur" role="banner">
+        <header className="shrink-0 border-b border-border/70 bg-card/92 shadow-sm backdrop-blur" role="banner">
           {header}
         </header>
         <div className="flex min-h-0 flex-1 relative">
           {isOverlay ? (
             <>
               <div
-                className="fixed inset-0 z-40 bg-black/50 md:hidden"
+                className="fixed inset-0 z-40 bg-black/45 md:hidden"
                 aria-hidden
                 onClick={() => onSidebarOpenChange?.(false)}
               />
               <aside
-                className="fixed inset-y-0 left-0 z-50 flex w-[min(380px,100vw)] flex-col border-r border-border bg-card shadow-xl overflow-y-auto"
+                className="fixed inset-y-0 left-0 z-50 flex w-[min(404px,100vw)] flex-col border-r border-border/80 bg-card shadow-xl overflow-y-auto"
                 aria-label="Filters and controls"
               >
-                <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-3 py-2">
-                  <span className="text-sm font-medium">Filters &amp; controls</span>
+                <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/70 bg-card px-4 py-3">
+                  <span className="text-sm font-medium tracking-wide">Filters &amp; controls</span>
                   <Button
                     type="button"
                     variant="ghost"
@@ -84,7 +84,7 @@ export const AppShell = React.forwardRef<HTMLDivElement, AppShellProps>(
           ) : null}
           {!isDrawerMode && showSidebar ? (
             <aside
-              className="flex w-[368px] shrink-0 flex-col border-r border-border/80 bg-muted/25 overflow-y-auto"
+              className="flex w-[392px] shrink-0 flex-col border-r border-border/70 bg-card/50 overflow-y-auto"
               aria-label="Filters and controls"
             >
               {sidebar}
