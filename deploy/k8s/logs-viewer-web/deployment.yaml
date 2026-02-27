@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logs-viewer-web
+  labels:
+    app.kubernetes.io/name: logs-viewer-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: logs-viewer-web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: logs-viewer-web
+    spec:
+      containers:
+        - name: nginx
+          image: ghcr.io/canepro/rocketchat-app-logs-viewer-web:0.1.1
+          ports:
+            - name: http
+              containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+              readOnly: true
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: logs-viewer-web-nginx

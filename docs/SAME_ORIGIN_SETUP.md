@@ -1,92 +1,53 @@
 # Same-Origin Web UI Setup
 
-How to serve the Logs Viewer web UI at:
+Serve the Logs Viewer UI at:
 
 `https://<rocketchat-host>/logs-viewer/`
 
-This is the recommended production default because browser requests to app APIs stay same-origin.
+This is an optional advanced mode. Use it when you control ingress/proxy routing and want same-origin app API behavior.
 
 Last updated: 2026-02-27
 
-## 1. Build artifacts
+## 1. Pick deployment mode
 
-From repository root:
+## 1.1 GitOps/Kubernetes mode (recommended for GitOps environments)
 
-```bash
-bun install
-bun run build
+Use image + manifests (no local `/srv` sync):
+
+1. Build/push image from `web/Dockerfile.same-origin`
+2. Commit/apply manifests under `deploy/k8s/logs-viewer-web/` via your GitOps repo
+3. Set app setting:
+
+```text
+external_component_url=https://k8.canepro.me/logs-viewer/
 ```
 
-Web static files are generated in:
+Reference:
 
-`resources/web/`
+- `deploy/k8s/logs-viewer-web/README.md`
 
-## 1.1 Sync web assets to server path (helper script)
+## 1.2 VM/filesystem mode (manual sync)
 
-Use the helper script from repo root:
+Use this only if your reverse proxy serves local filesystem paths directly:
 
 ```bash
+bun run build
 bun run deploy:web -- --target /srv/rocketchat/logs-viewer
 ```
 
-Notes:
+Then configure your reverse proxy to serve `/logs-viewer/` from that directory.
 
-1. Default source is `resources/web/`.
-2. By default, sync uses delete mode to remove stale files.
-3. Add `--no-delete` if you want additive sync only.
+## 2. Validation
 
-## 2. Set app setting
+1. Open `https://<rocketchat-host>/logs-viewer/`
+2. Confirm assets load from `/logs-viewer/assets/...` (no 404s)
+3. In Rocket.Chat, run `/logs` and click **Open Logs Viewer**
 
-In Rocket.Chat app settings:
+## 3. Common failures
 
-```text
-external_component_url=https://<rocketchat-host>/logs-viewer/
-```
-
-## 3. Serve `/logs-viewer/` from your web tier
-
-You need your reverse proxy/web server to serve `resources/web/` at `/logs-viewer/`.
-
-## 3.1 Nginx example
-
-```nginx
-location /logs-viewer/ {
-    alias /srv/rocketchat/logs-viewer/;
-    index index.html;
-    try_files $uri $uri/ /logs-viewer/index.html;
-}
-```
-
-Notes:
-
-1. `alias` path must end with `/`.
-2. Re-sync updated `resources/web/` files on each app release.
-
-## 3.2 Caddy example
-
-```caddyfile
-handle_path /logs-viewer/* {
-    root * /srv/rocketchat/logs-viewer
-    try_files {path} /index.html
-    file_server
-}
-```
-
-## 4. Validation
-
-After proxy update:
-
-1. Open `https://<rocketchat-host>/logs-viewer/` directly in browser.
-2. Confirm JS/CSS assets load (no 404 under `/logs-viewer/assets/...`).
-3. In Rocket.Chat, run `/logs` and click **Open Logs Viewer**.
-4. Confirm query calls hit `/api/apps/private/<appId>/...` on the same host.
-
-## 5. Common failures
-
-1. Blank page or broken styling:
-   - static files not synced from `resources/web/`
-   - wrong proxy root/alias path
-2. 404 on refresh/deep link:
-   - missing SPA fallback to `/logs-viewer/index.html`
-3. CORS/auth errors:
-   - UI is not actually same-origin; verify protocol, host, and port all match Rocket.Chat.
+1. `404 Page not found` on `/logs-viewer/`:
+   - ingress/proxy route for `/logs-viewer` is missing
+2. Blank page or missing CSS/JS:
+   - UI assets are not served at `/logs-viewer/assets/...`
+3. Works locally but not on cluster:
+   - local `/srv/...` sync is not visible to Kubernetes ingress unless mounted into a cluster-served pod/service

@@ -13,7 +13,11 @@ This app has two parts:
 
 If `external_component_url` is left as `http://localhost:5173`, only the machine running that local dev server can open the UI. For team use, set it to a shared URL.
 
-Recommended production default:
+Recommended default for most users:
+
+- `external_component_url=https://<your-hosted-logs-viewer-url>` (external/static hosting)
+
+Optional advanced mode:
 
 - `external_component_url=https://<rocketchat-host>/logs-viewer/` (same-origin path mode)
 
@@ -60,18 +64,19 @@ ls -lh dist/logs-viewer_*.zip
 
 Use one of these options:
 
-1. Same-origin path (recommended safe default):
+1. External/static host (recommended default for most users):
+   - upload `resources/web/` to static host/CDN and use that URL
+   - set `external_component_url` to that hosted URL
+2. Same-origin path (optional advanced mode):
    - serve `resources/web/` at `https://<rocketchat-host>/logs-viewer/`
    - set `external_component_url=https://<rocketchat-host>/logs-viewer/`
-   - this avoids cross-origin/CORS complexity for most users
-2. External/static host:
-   - upload `resources/web/` to static host/CDN and use that URL
-   - keep CORS/auth behavior in mind when origin differs from Rocket.Chat
+   - use this when you control ingress/reverse-proxy routing
+   - for GitOps/Kubernetes, prefer image + manifests from `deploy/k8s/logs-viewer-web/`
 3. Local-only testing:
    - use `http://localhost:5173` with `bun run dev:web`
    - not suitable for shared/team usage
 
-Same-origin setup examples: [`SAME_ORIGIN_SETUP.md`](SAME_ORIGIN_SETUP.md)
+Same-origin setup examples (optional advanced): [`SAME_ORIGIN_SETUP.md`](SAME_ORIGIN_SETUP.md)
 Helper script for web asset sync: `bun run deploy:web -- --target <server-path>`
 
 ## 4. Deploy the package
@@ -106,7 +111,7 @@ required_label_selector={job="rocketchat"}
 allowed_roles=admin,log-viewer
 workspace_permission_mode=strict
 workspace_permission_code=view-logs
-external_component_url=https://<rocketchat-host>/logs-viewer/
+external_component_url=https://<your-hosted-logs-viewer-url>
 ```
 
 ## 5.2 Minimum settings for `app_logs` mode
@@ -116,7 +121,7 @@ logs_source_mode=app_logs
 allowed_roles=admin,log-viewer
 workspace_permission_mode=strict
 workspace_permission_code=view-logs
-external_component_url=https://<rocketchat-host>/logs-viewer/
+external_component_url=https://<your-hosted-logs-viewer-url>
 ```
 
 Notes:
@@ -125,6 +130,7 @@ Notes:
 - Keep `workspace_permission_mode=strict` for production.
 - `required_label_selector` must match real labels in your Loki data.
 - `required_label_selector` is ignored in `app_logs` mode.
+- If same-origin setup is not already in place, use an external hosted URL for `external_component_url`.
 
 ## 6. Assign permission and role access
 

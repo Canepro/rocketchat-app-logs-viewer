@@ -36,8 +36,8 @@ For first-time setup, follow `docs/DEPLOYMENT_QUICKSTART.md` first, then return 
 
 1. Confirm target package exists: `ls -lh dist/logs-viewer_*.zip`
 2. Confirm app setting plan is prepared (especially `external_component_url` and selector).
-   - Recommended default: `https://<rocketchat-host>/logs-viewer/`
-   - Setup reference: `docs/SAME_ORIGIN_SETUP.md`
+   - Recommended default for most users: external hosted URL (for example `https://<your-hosted-logs-viewer-url>`)
+   - Optional advanced mode: `https://<rocketchat-host>/logs-viewer/` (see `docs/SAME_ORIGIN_SETUP.md`)
 3. Confirm one allowed test user and one denied test user are ready.
 4. Confirm rollback artifact/version is available.
 
@@ -94,7 +94,7 @@ Recommended minimum values for first production boot:
 logs_source_mode=loki
 loki_base_url=https://<loki-host-or-observability-gateway>
 required_label_selector={job="rocketchat"}
-external_component_url=https://<rocketchat-host>/logs-viewer/
+external_component_url=https://<your-hosted-logs-viewer-url>
 allowed_roles=admin,log-viewer
 workspace_permission_mode=strict
 workspace_permission_code=view-logs
@@ -104,7 +104,7 @@ If running without Loki, set:
 
 ```text
 logs_source_mode=app_logs
-external_component_url=https://<rocketchat-host>/logs-viewer/
+external_component_url=https://<your-hosted-logs-viewer-url>
 allowed_roles=admin,log-viewer
 workspace_permission_mode=strict
 workspace_permission_code=view-logs
