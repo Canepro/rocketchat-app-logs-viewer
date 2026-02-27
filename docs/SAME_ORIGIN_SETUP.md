@@ -52,6 +52,12 @@ Then configure your reverse proxy to serve `/logs-viewer/` from that directory.
 - Fallback option:
   - configure explicit token mode for the web UI (`VITE_ROCKETCHAT_USER_ID`, `VITE_ROCKETCHAT_AUTH_TOKEN`) in environments where session storage is not available to the page.
 
+## 2.2 UI behavior defaults
+
+- Desktop deep links from `/logs` (`source=slash`) open with filters hidden by default, so logs use more horizontal space.
+- Operators can toggle filters from the header (`Show filters` / `Hide filters`).
+- The viewer remembers display preferences (filters visibility, message view mode, wrap mode) in browser local storage.
+
 ## 3. Common failures
 
 1. `404 Page not found` on `/logs-viewer/`:

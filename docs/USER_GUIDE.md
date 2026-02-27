@@ -132,6 +132,15 @@ Rules:
 
 ## 6. Using the UI
 
+## Layout defaults
+
+- On desktop, if the viewer is opened from `/logs` deep links (`source=slash`), filters start **hidden** so the logs pane gets more width.
+- Use the header button **Show filters** / **Hide filters** any time.
+- In this browser, the UI remembers your display preferences across reloads:
+  - desktop filters visible/hidden
+  - message view (`Pretty` or `Raw`)
+  - wrap mode (`Wrap on` / `Wrap off`)
+
 ## Query panel
 
 - Choose `relative` or `absolute` time mode
