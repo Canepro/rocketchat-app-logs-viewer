@@ -21,7 +21,7 @@ This app complements Loki/Grafana; it does not replace them.
   - `loki` (default): Loki reachable from Rocket.Chat app runtime
   - `app_logs`: Rocket.Chat app logs API access allowed for requesting users
 - For `loki` mode:
-  - `loki_base_url` points to Loki base host (for example `https://observability.canepro.me`), not a full query path
+  - `loki_base_url` points to Loki base host (for example `https://loki.example.com`), not a full query path
   - upstream ingress/proxy exposes Loki read path used by app (`/loki/api/v1/query_range`)
 - Required app settings configured:
   - Logs source mode
@@ -233,7 +233,7 @@ The UI enforces basic client validation. Backend still enforces authoritative li
 
 ## Query failed with `404` from Loki
 
-- Confirm `loki_base_url` is host-only (for example `https://observability.canepro.me`).
+- Confirm `loki_base_url` is host-only (for example `https://loki.example.com`).
 - Confirm upstream ingress/proxy exposes Loki query path `/loki/api/v1/query_range`.
 - If only `/loki/api/v1/push` is exposed, ingestion can work while viewer queries fail.
 

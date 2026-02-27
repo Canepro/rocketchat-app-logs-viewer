@@ -52,7 +52,7 @@ Notes:
 
 Environment example observed during field validation:
 
-- `required_label_selector={cluster="aks-canepro",namespace="rocketchat"}`
+- `required_label_selector={cluster="<cluster-name>",namespace="rocketchat"}`
 
 ## 3. Copy-paste bundles
 

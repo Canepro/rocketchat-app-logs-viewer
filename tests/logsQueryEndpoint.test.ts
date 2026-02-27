@@ -330,7 +330,7 @@ describe('LogsQueryEndpoint negative paths', () => {
         const response = await endpoint.post(
             buildRequest({
                 headers: {
-                    host: 'k8.canepro.me',
+                    host: 'rocketchat.example.com',
                     'x-forwarded-proto': 'https',
                     'x-user-id': 'u-admin',
                     'x-auth-token': 'token-1',

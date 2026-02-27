@@ -206,7 +206,7 @@ As of 2026-02-26:
 - Loki ingress/query route exposure was validated as healthy in the target observability cluster.
 - Primary Loki query failure cause was selector mismatch, not ingress/path failure:
   - non-working selector example: `{job="rocketchat"}`
-  - working environment selector: `{cluster="aks-canepro",namespace="rocketchat"}`
+  - working environment selector pattern: `{cluster="<cluster-name>",namespace="rocketchat"}`
 - `app_logs` source mode worked as expected as no-Loki fallback mode.
 - Previous UI pain point addressed in current branch:
   - large/structured log lines now have expand/collapse, pretty/raw rendering, wrap toggle, and copy-line affordances.
