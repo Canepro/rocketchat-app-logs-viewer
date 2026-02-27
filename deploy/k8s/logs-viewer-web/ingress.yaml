@@ -5,7 +5,8 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: k8.canepro.me
+    # Replace with your Rocket.Chat public host.
+    - host: rocketchat.example.com
       http:
         paths:
           - path: /logs-viewer
@@ -17,5 +18,5 @@ spec:
                   number: 80
   tls:
     - hosts:
-        - k8.canepro.me
+        - rocketchat.example.com
       secretName: rocketchat-tls

@@ -117,7 +117,7 @@ Source mode notes:
 
 `loki_base_url` guidance:
 
-- Use only the Loki host/base origin (for example `https://observability.canepro.me`), not full API paths.
+- Use only the Loki host/base origin (for example `https://loki.example.com`), not full API paths.
 - Do not append `/loki/api/v1/query_range`; the app composes query paths internally.
 - Ensure the upstream ingress/proxy exposes Loki read APIs used by this app (`/loki/api/v1/query_range`, optionally `/loki/api/v1/query`).
 
@@ -167,8 +167,8 @@ Validated in active environments during implementation:
 
 1. Loki ingress query path exposure was healthy; query APIs were exposed and reachable.
 2. A `returned: 0` outcome in UI was traced to label selector mismatch, not ingress failure.
-3. Working selector example for the tested environment:
-   - `required_label_selector={cluster="aks-canepro",namespace="rocketchat"}`
+3. Working selector example pattern for tested environments:
+   - `required_label_selector={cluster="<cluster-name>",namespace="rocketchat"}`
 4. `app_logs` source mode worked as expected as operational fallback.
 5. Rocket.Chat pod logs can be high-volume and repetitive during active UI/admin usage:
    - keep sidebar preview concise for scan speed (25 lines)

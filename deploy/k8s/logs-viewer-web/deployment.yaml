@@ -16,7 +16,8 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: ghcr.io/canepro/rocketchat-app-logs-viewer-web:0.1.1
+          # Replace with your published image.
+          image: ghcr.io/example-org/rocketchat-app-logs-viewer-web:0.1.1
           ports:
             - name: http
               containerPort: 80

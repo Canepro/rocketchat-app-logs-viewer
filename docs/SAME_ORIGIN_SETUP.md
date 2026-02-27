@@ -19,7 +19,7 @@ Use image + manifests (no local `/srv` sync):
 3. Set app setting:
 
 ```text
-external_component_url=https://k8.canepro.me/logs-viewer/
+external_component_url=https://<rocketchat-host>/logs-viewer/
 ```
 
 Reference:
