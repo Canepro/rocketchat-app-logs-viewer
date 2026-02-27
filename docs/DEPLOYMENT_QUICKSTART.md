@@ -72,6 +72,7 @@ Use one of these options:
    - set `external_component_url=https://<rocketchat-host>/logs-viewer/`
    - use this when you control ingress/reverse-proxy routing
    - for GitOps/Kubernetes, prefer image + manifests from `deploy/k8s/logs-viewer-web/`
+   - auth note: users must open from an active Rocket.Chat browser session on the same origin (or configure token mode for web UI)
 3. Local-only testing:
    - use `http://localhost:5173` with `bun run dev:web`
    - not suitable for shared/team usage
@@ -150,6 +151,12 @@ Run these checks right after deployment:
 6. Denied user attempts `/logs` and is blocked.
 
 If these checks pass, deployment is ready for broader operator use.
+
+If viewer opens but shows `Config unavailable (HTTP 401)`:
+
+1. Confirm user is actively logged into Rocket.Chat in the same browser profile and origin.
+2. Refresh and reopen from `/logs` card.
+3. If your environment blocks storage-based session propagation, use token mode for web UI (`VITE_ROCKETCHAT_USER_ID` + `VITE_ROCKETCHAT_AUTH_TOKEN`).
 
 ## 8. If deployment fails
 

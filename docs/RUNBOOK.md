@@ -372,6 +372,25 @@ Notes:
   - `50+ -> error`
 - If none of these are present, `[unknown]` is expected fallback behavior.
 
+## 7.10 Same-origin viewer shows `HTTP 401`
+
+Symptom: web UI loads, but banner shows `Config unavailable` with `HTTP 401`.
+
+Checks:
+
+1. Confirm user is logged into Rocket.Chat in the same browser profile and same origin host.
+2. Re-open viewer from fresh `/logs` response (avoid stale tab/profile context).
+3. Confirm viewer runtime shows app API path and not a foreign origin.
+4. If your environment blocks session-storage auth propagation to this route, run web UI in token mode:
+   - `VITE_ROCKETCHAT_API_ORIGIN=https://<rocketchat-host>`
+   - `VITE_ROCKETCHAT_USER_ID=<rc-user-id>`
+   - `VITE_ROCKETCHAT_AUTH_TOKEN=<personal-access-token-or-auth-token>`
+
+Notes:
+
+- Current web client attempts same-origin storage-based auth first, and can fall back between private/public app base paths for compatibility.
+- `401` means authentication context was not accepted; `403` means authenticated but denied by role/workspace-permission policy.
+
 ## 8. Escalation data collection
 
 When escalating an incident, collect:
