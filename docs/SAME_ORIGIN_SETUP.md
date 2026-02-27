@@ -42,6 +42,15 @@ Then configure your reverse proxy to serve `/logs-viewer/` from that directory.
 1. Open `https://<rocketchat-host>/logs-viewer/`
 2. Confirm assets load from `/logs-viewer/assets/...` (no 404s)
 3. In Rocket.Chat, run `/logs` and click **Open Logs Viewer**
+4. Confirm config loads (no `HTTP 401` banner in the viewer)
+
+## 2.1 Authentication behavior (same-origin)
+
+- The web UI calls Rocket.Chat app API endpoints and needs Rocket.Chat auth context.
+- In same-origin mode, the UI now auto-detects auth from browser storage (current Rocket.Chat session) and sends request headers.
+- If browser storage auth is unavailable (for example: no active workspace session in that browser profile), calls return `401`.
+- Fallback option:
+  - configure explicit token mode for the web UI (`VITE_ROCKETCHAT_USER_ID`, `VITE_ROCKETCHAT_AUTH_TOKEN`) in environments where session storage is not available to the page.
 
 ## 3. Common failures
 
@@ -49,5 +58,8 @@ Then configure your reverse proxy to serve `/logs-viewer/` from that directory.
    - ingress/proxy route for `/logs-viewer` is missing
 2. Blank page or missing CSS/JS:
    - UI assets are not served at `/logs-viewer/assets/...`
-3. Works locally but not on cluster:
+3. `Config unavailable: Request failed (401)`:
+   - user session/auth context is missing in that browser profile
+   - open viewer from an active Rocket.Chat session on the same origin, or use token mode
+4. Works locally but not on cluster:
    - local `/srv/...` sync is not visible to Kubernetes ingress unless mounted into a cluster-served pod/service

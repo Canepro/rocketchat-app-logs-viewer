@@ -210,12 +210,12 @@ const apiOrigin = (import.meta.env.VITE_ROCKETCHAT_API_ORIGIN || '').trim().repl
 const devUserId = (import.meta.env.VITE_ROCKETCHAT_USER_ID || '').trim();
 const devAuthToken = (import.meta.env.VITE_ROCKETCHAT_AUTH_TOKEN || '').trim();
 const configuredApiBasePath = (import.meta.env.VITE_ROCKETCHAT_APP_API_BASE_PATH || '').trim().replace(/\/$/, '');
-const hasDevAuthHeaders = devUserId.length > 0 && devAuthToken.length > 0;
+const hasConfiguredAuthHeaders = devUserId.length > 0 && devAuthToken.length > 0;
 const privateAppApiPath = `/api/apps/private/${appId}`;
 const publicAppApiPath = `/api/apps/public/${appId}`;
 // Local proxy mode is only used when explicit dev auth headers are provided.
 // Without those headers, keep direct-origin calls so existing Rocket.Chat cookies can authenticate requests.
-const useLocalDevProxy = import.meta.env.DEV && apiOrigin.length > 0 && hasDevAuthHeaders;
+const useLocalDevProxy = import.meta.env.DEV && apiOrigin.length > 0 && hasConfiguredAuthHeaders;
 // Prefer private app API first because this UI targets private app endpoints.
 // Public path remains as fallback for compatibility across workspace deployments.
 const rawBasePathCandidates = configuredApiBasePath
@@ -240,6 +240,108 @@ const apiBaseCandidates = rawBasePathCandidates
   .filter((value, index, array) => array.indexOf(value) === index);
 const privateApiBase = apiBaseCandidates[0] || resolveApiBaseCandidate(privateAppApiPath);
 
+const stripWrappingQuotes = (value: string): string => {
+  const trimmed = value.trim();
+  if (trimmed.length < 2) {
+    return trimmed;
+  }
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith('\'') && trimmed.endsWith('\''))) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+};
+
+const readStorageValue = (storage: Storage, key: string): string | undefined => {
+  try {
+    const rawValue = storage.getItem(key);
+    if (!rawValue) {
+      return undefined;
+    }
+
+    const unwrapped = stripWrappingQuotes(rawValue);
+    if (!unwrapped) {
+      return undefined;
+    }
+
+    if ((unwrapped.startsWith('{') && unwrapped.endsWith('}')) || (unwrapped.startsWith('[') && unwrapped.endsWith(']'))) {
+      try {
+        const parsed = JSON.parse(unwrapped) as { token?: unknown; authToken?: unknown };
+        if (typeof parsed.token === 'string' && parsed.token.trim()) {
+          return parsed.token.trim();
+        }
+        if (typeof parsed.authToken === 'string' && parsed.authToken.trim()) {
+          return parsed.authToken.trim();
+        }
+      } catch {
+        // fall through and use raw string
+      }
+    }
+
+    return unwrapped;
+  } catch {
+    return undefined;
+  }
+};
+
+const readBrowserStorageAuth = (): { userId: string; authToken: string } | undefined => {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+
+  const storages: Array<Storage> = [window.localStorage, window.sessionStorage];
+  const userKeys = ['Meteor.userId', 'rc_uid', 'userId'];
+  const tokenKeys = ['Meteor.loginToken', 'rc_token', 'authToken', 'loginToken'];
+
+  let userId: string | undefined;
+  let authToken: string | undefined;
+
+  for (const storage of storages) {
+    if (!userId) {
+      for (const key of userKeys) {
+        const value = readStorageValue(storage, key);
+        if (value) {
+          userId = value;
+          break;
+        }
+      }
+    }
+    if (!authToken) {
+      for (const key of tokenKeys) {
+        const value = readStorageValue(storage, key);
+        if (value) {
+          authToken = value;
+          break;
+        }
+      }
+    }
+  }
+
+  if (!userId || !authToken) {
+    return undefined;
+  }
+
+  return { userId, authToken };
+};
+
+const readAuthHeaders = (): { 'X-User-Id': string; 'X-Auth-Token': string } | undefined => {
+  if (hasConfiguredAuthHeaders) {
+    return {
+      'X-User-Id': devUserId,
+      'X-Auth-Token': devAuthToken,
+    };
+  }
+
+  const browserAuth = readBrowserStorageAuth();
+  if (!browserAuth) {
+    return undefined;
+  }
+
+  return {
+    'X-User-Id': browserAuth.userId,
+    'X-Auth-Token': browserAuth.authToken,
+  };
+};
+
 const parseJsonSafe = async (response: Response): Promise<unknown> => {
   const contentType = response.headers.get('content-type') || '';
   if (!contentType.toLowerCase().includes('application/json')) {
@@ -260,13 +362,14 @@ const requestPrivateApi = async <T>(path: string, init?: RequestInit): Promise<T
   for (let index = 0; index < apiBaseCandidates.length; index += 1) {
     const candidateBase = apiBaseCandidates[index];
     const isLastCandidate = index === apiBaseCandidates.length - 1;
+    const authHeaders = readAuthHeaders();
 
     const response = await fetch(`${candidateBase}/${normalizedPath}`, {
       credentials: 'include',
       headers: {
         Accept: 'application/json',
         ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
-        ...(hasDevAuthHeaders ? { 'X-User-Id': devUserId, 'X-Auth-Token': devAuthToken } : {}),
+        ...(authHeaders || {}),
         ...(init?.headers || {}),
       },
       ...init,
@@ -279,7 +382,11 @@ const requestPrivateApi = async <T>(path: string, init?: RequestInit): Promise<T
 
     const error = new PrivateApiError(payload?.error || `Request failed (${response.status})`, response.status, payload?.details);
     finalError = error;
-    if (!isLastCandidate && response.status === 404) {
+    if (
+      !isLastCandidate
+      && candidateBase.includes(`/api/apps/private/${appId}`)
+      && (response.status === 404 || response.status === 401)
+    ) {
       continue;
     }
 
@@ -294,7 +401,9 @@ export const getRuntimeConnection = () => ({
   privateApiBase,
   apiBaseCandidates,
   useLocalDevProxy,
-  hasDevAuthHeaders,
+  hasConfiguredAuthHeaders,
+  hasBrowserStorageAuth: Boolean(readBrowserStorageAuth()),
+  hasRuntimeAuthHeaders: Boolean(readAuthHeaders()),
 });
 
 export const getConfig = () => requestPrivateApi<{ ok: true; config: LogsConfig }>('config');

@@ -582,6 +582,13 @@ export function App() {
   const targetsError = targetsQuery.error;
   const threadsError = threadsQuery.error;
   const configError = configQuery.error;
+  const configErrorMessage = isPrivateApiError(configError)
+    ? (
+        configError.status === 401 && !runtime.hasRuntimeAuthHeaders
+          ? 'Authentication required. Open from an active Rocket.Chat browser session on the same origin, or configure VITE_ROCKETCHAT_USER_ID and VITE_ROCKETCHAT_AUTH_TOKEN.'
+          : `${configError.message} (HTTP ${configError.status})`
+      )
+    : 'Could not load app config.';
   const slashContextRoomId = prefill.context.roomId?.trim() || '';
   const slashContextThreadId = prefill.context.threadId?.trim() || '';
   const canUseSlashRoomTarget = Boolean(slashContextRoomId);
@@ -1490,7 +1497,7 @@ export function App() {
       {configError ? (
         <ErrorState
           title="Config unavailable"
-          message={isPrivateApiError(configError) ? `${configError.message} (HTTP ${configError.status})` : 'Could not load app config.'}
+          message={configErrorMessage}
           details={isPrivateApiError(configError) ? formatErrorDetails(configError.details) ?? undefined : undefined}
         />
       ) : null}
