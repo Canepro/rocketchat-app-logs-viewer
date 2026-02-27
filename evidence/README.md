@@ -25,6 +25,7 @@ If you want visuals in a public repo:
 1. Place only sanitized images in `evidence/**/screenshots/public/`.
 2. Ensure no user IDs, tokens, hostnames, internal URLs, or sensitive log lines are visible.
 3. Prefer cropped UI-focused screenshots over full desktop captures.
+4. Follow `evidence/screenshots/public/README.md` before committing.
 
 ## Where raw evidence should live
 
