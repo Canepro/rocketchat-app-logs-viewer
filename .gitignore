@@ -16,6 +16,8 @@ evidence/**/network/*
 !evidence/**/network/.gitkeep
 evidence/**/screenshots/*
 !evidence/**/screenshots/.gitkeep
+!evidence/**/screenshots/public/
+!evidence/**/screenshots/public/**
 evidence/**/app-logs/*
 !evidence/**/app-logs/.gitkeep
 evidence/**/notes/*.md

@@ -39,6 +39,7 @@ jobs:
             git ls-files evidence \
               | grep -E '^evidence/.*/(network/.*\.har|screenshots/.*\.(png|jpg|jpeg|webp)|app-logs/.*|notes/.*\.md)$' \
               | grep -Ev '/\.gitkeep$' \
+              | grep -Ev '^evidence/.*/screenshots/public/' \
               || true
           )"
           if [ -n "$forbidden" ]; then
