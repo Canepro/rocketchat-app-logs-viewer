@@ -324,7 +324,15 @@ export function App() {
 
   const isDesktop = useMediaQuery(SIDEBAR_INLINE_BREAKPOINT);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const sidebarVisible = isDesktop || sidebarOpen;
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
+  const sidebarVisible = isDesktop ? desktopSidebarOpen : sidebarOpen;
+  const handleSidebarOpenChange = useCallback((open: boolean) => {
+    if (isDesktop) {
+      setDesktopSidebarOpen(open);
+      return;
+    }
+    setSidebarOpen(open);
+  }, [isDesktop]);
 
   const configQuery = useQuery({
     queryKey: ['logs-config'],
@@ -943,12 +951,23 @@ export function App() {
     <AppShell
       isDrawerMode={!isDesktop}
       sidebarOpen={sidebarVisible}
-      onSidebarOpenChange={setSidebarOpen}
+      onSidebarOpenChange={handleSidebarOpenChange}
       header={
         <div className="grid gap-3 px-4 py-3 md:px-6 md:py-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
-              {!isDesktop ? (
+              {isDesktop ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDesktopSidebarOpen((value) => !value)}
+                  aria-label={desktopSidebarOpen ? 'Hide filters and controls' : 'Show filters and controls'}
+                >
+                  <Filter className="mr-1.5 h-4 w-4" aria-hidden />
+                  {desktopSidebarOpen ? 'Hide filters' : 'Show filters'}
+                </Button>
+              ) : (
                 <Button
                   type="button"
                   variant="outline"
@@ -959,7 +978,7 @@ export function App() {
                   <Filter className="mr-1.5 h-4 w-4" aria-hidden />
                   Filters
                 </Button>
-              ) : null}
+              )}
               <div className="min-w-0">
                 <h1 className="text-xl font-semibold tracking-tight md:text-2xl">Logs Viewer</h1>
                 <p className="mt-0.5 text-xs text-muted-foreground">
@@ -1494,14 +1513,17 @@ export function App() {
         </div>
       }
     >
-      {configError ? (
-        <ErrorState
-          title="Config unavailable"
-          message={configErrorMessage}
-          details={isPrivateApiError(configError) ? formatErrorDetails(configError.details) ?? undefined : undefined}
-        />
-      ) : null}
-      <div className="flex flex-col p-4 md:p-6 min-h-0">
+      <div className="flex min-h-0 flex-1 flex-col">
+        {configError ? (
+          <div className="shrink-0 px-4 pt-4 md:px-6 md:pt-6">
+            <ErrorState
+              title="Config unavailable"
+              message={configErrorMessage}
+              details={isPrivateApiError(configError) ? formatErrorDetails(configError.details) ?? undefined : undefined}
+            />
+          </div>
+        ) : null}
+        <div className="flex min-h-0 flex-1 flex-col p-4 md:p-6">
         {entries.length === 0 ? (
           <EmptyState
             icon={<Search className="h-10 w-10" />}
@@ -1540,7 +1562,7 @@ export function App() {
                   ) : null}
                 </div>
 
-                <div ref={parentRef} className="log-scrollbar h-[640px] overflow-auto rounded-lg border border-border/80 bg-card/60 shadow-inner">
+                <div ref={parentRef} className="log-scrollbar min-h-[360px] flex-1 overflow-auto rounded-lg border border-border/80 bg-card/60 shadow-inner">
                   <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
                     {virtualizer.getVirtualItems().map((item) => {
                       const entry = entries[item.index];
@@ -1653,7 +1675,8 @@ export function App() {
                   </div>
                 </div>
               </>
-            )}
+        )}
+        </div>
       </div>
     </AppShell>
   );
