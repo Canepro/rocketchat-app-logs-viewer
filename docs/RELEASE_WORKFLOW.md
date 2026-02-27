@@ -2,7 +2,7 @@
 
 Standard workflow for versioning, changelog updates, package validation, and release evidence.
 
-Last updated: 2026-02-26
+Last updated: 2026-02-27
 
 ## 1. Purpose
 
@@ -65,6 +65,12 @@ Run and record:
 3. `bun run build`
 4. `bun run package`
 5. Confirm GitHub CI workflow (`.github/workflows/ci.yml`) is green for the release commit/PR.
+
+Optional helper (recommended before cutting a release):
+
+- `bun run release:checklist`
+- With explicit target version: `bun run release:checklist -- --release-version <x.y.z>`
+- To skip long-running gates and run structure/docs checks only: `bun run release:checklist -- --no-gates`
 
 If any gate fails, release is blocked.
 

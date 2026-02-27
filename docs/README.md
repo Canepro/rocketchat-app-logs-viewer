@@ -22,6 +22,10 @@ Use this index to find canonical docs quickly and avoid drift.
 2. `docs/GITHUB_PUSH_PLAN.md` — branch, PR, tag, and push discipline.
 3. `docs/MARKETPLACE_CHECKLIST.md` — marketplace readiness checklist.
 
+Release helper command:
+
+- `bun run release:checklist` (script: `scripts/release-checklist.sh`)
+
 ## 3. Version records (historical snapshots)
 
 1. `docs/SMOKE_CHECKLIST.md` — reusable scenario checklist with evidence links.
