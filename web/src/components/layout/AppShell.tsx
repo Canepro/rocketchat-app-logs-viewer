@@ -39,7 +39,7 @@ export const AppShell = React.forwardRef<HTMLDivElement, AppShellProps>(
     },
     ref,
   ) => {
-    const showSidebar = isDrawerMode ? sidebarOpen : true;
+    const showSidebar = sidebarOpen;
     const isOverlay = isDrawerMode && sidebarOpen;
 
     return (
@@ -90,7 +90,7 @@ export const AppShell = React.forwardRef<HTMLDivElement, AppShellProps>(
               {sidebar}
             </aside>
           ) : null}
-          <main className="min-w-0 flex-1 overflow-auto" role="main">
+          <main className="min-w-0 flex-1 overflow-hidden" role="main">
             {children}
           </main>
         </div>
