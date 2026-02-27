@@ -72,6 +72,14 @@ fail() {
   echo "[FAIL] $1"
 }
 
+print_summary() {
+  echo
+  echo "== Summary =="
+  echo "Pass: $PASS_COUNT"
+  echo "Warn: $WARN_COUNT"
+  echo "Fail: $FAIL_COUNT"
+}
+
 check_file_exists() {
   local path="$1"
   if [[ -f "$path" ]]; then
@@ -83,6 +91,21 @@ check_file_exists() {
 
 echo "== Release Checklist =="
 echo "Repository: $ROOT_DIR"
+
+MISSING_TOOLS=0
+for tool in node rg; do
+  if command -v "$tool" >/dev/null 2>&1; then
+    pass "Tool available: $tool"
+  else
+    fail "Required tool is missing: $tool"
+    MISSING_TOOLS=1
+  fi
+done
+
+if [[ "$MISSING_TOOLS" -gt 0 ]]; then
+  print_summary
+  exit 1
+fi
 
 APP_VERSION="$(node -p "require('./app.json').version" 2>/dev/null || true)"
 PKG_VERSION="$(node -p "require('./package.json').version" 2>/dev/null || true)"
@@ -107,16 +130,24 @@ if [[ -n "$RELEASE_VERSION" && -n "$APP_VERSION" ]]; then
   fi
 fi
 
-if rg -n "## \\[$APP_VERSION\\]" CHANGELOG.md >/dev/null 2>&1; then
-  pass "CHANGELOG.md contains version heading for $APP_VERSION"
+if [[ -n "$APP_VERSION" ]]; then
+  if rg -n "## \\[$APP_VERSION\\]" CHANGELOG.md >/dev/null 2>&1; then
+    pass "CHANGELOG.md contains version heading for $APP_VERSION"
+  else
+    warn "CHANGELOG.md has no heading for app.json version $APP_VERSION (expected format: ## [$APP_VERSION])"
+  fi
 else
-  warn "CHANGELOG.md has no heading for app.json version $APP_VERSION (expected format: ## [$APP_VERSION])"
+  fail "APP_VERSION is empty; cannot verify CHANGELOG.md version heading"
 fi
 
-if rg -n "\"version\": \"$APP_VERSION\"" docs/VERSION_TRACKER.md >/dev/null 2>&1 || rg -n "$APP_VERSION" docs/VERSION_TRACKER.md >/dev/null 2>&1; then
-  pass "docs/VERSION_TRACKER.md references app.json version $APP_VERSION"
+if [[ -n "$APP_VERSION" ]]; then
+  if rg -n "\"version\": \"$APP_VERSION\"" docs/VERSION_TRACKER.md >/dev/null 2>&1 || rg -n "$APP_VERSION" docs/VERSION_TRACKER.md >/dev/null 2>&1; then
+    pass "docs/VERSION_TRACKER.md references app.json version $APP_VERSION"
+  else
+    warn "docs/VERSION_TRACKER.md does not reference app.json version $APP_VERSION"
+  fi
 else
-  warn "docs/VERSION_TRACKER.md does not reference app.json version $APP_VERSION"
+  fail "APP_VERSION is empty; cannot verify docs/VERSION_TRACKER.md references"
 fi
 
 check_file_exists ".rcappsconfig"
@@ -145,18 +176,18 @@ if [[ "$RUN_GATES" == "true" ]]; then
   echo
   echo "== Quality Gates =="
   QUALITY_CMDS=(
-    "bun run test"
-    "bun run typecheck"
-    "bun run build"
-    "bun run package"
+    "test"
+    "typecheck"
+    "build"
+    "package"
   )
 
   for cmd in "${QUALITY_CMDS[@]}"; do
-    echo "Running: $cmd"
-    if eval "$cmd"; then
-      pass "Quality gate passed: $cmd"
+    echo "Running: bun run $cmd"
+    if bun run "$cmd"; then
+      pass "Quality gate passed: bun run $cmd"
     else
-      fail "Quality gate failed: $cmd"
+      fail "Quality gate failed: bun run $cmd"
     fi
   done
 
@@ -169,11 +200,7 @@ else
   warn "Skipped quality gates (--no-gates)"
 fi
 
-echo
-echo "== Summary =="
-echo "Pass: $PASS_COUNT"
-echo "Warn: $WARN_COUNT"
-echo "Fail: $FAIL_COUNT"
+print_summary
 
 if [[ "$FAIL_COUNT" -gt 0 ]]; then
   exit 1
