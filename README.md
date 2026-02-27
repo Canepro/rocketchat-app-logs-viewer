@@ -61,7 +61,8 @@ Out of scope:
 - Rocket.Chat workspace where you can install private apps
 - For Loki mode: Loki query endpoint reachable from Rocket.Chat runtime
 - A hosted web URL for the external component (do not use `http://localhost:5173` for shared environments)
-- Recommended default: serve web UI at `https://<rocketchat-host>/logs-viewer/` (same-origin)
+- Recommended default for most users: host the web UI on a simple static URL and set `external_component_url` to that URL.
+- Optional advanced mode: serve the UI same-origin at `https://<rocketchat-host>/logs-viewer/`.
 
 ### Local build and checks
 
@@ -96,6 +97,10 @@ Option B (Admin UI upload):
 bun run deploy:web -- --target /srv/rocketchat/logs-viewer
 ```
 
+For GitOps/Kubernetes environments, use image + manifests instead:
+- `web/Dockerfile.same-origin`
+- `deploy/k8s/logs-viewer-web/`
+
 ## Core settings (operator)
 
 Minimum required values after install:
@@ -121,10 +126,11 @@ Starter production-safe examples:
 - `allowed_roles=admin,log-viewer`
 - `workspace_permission_mode=strict`
 - `workspace_permission_code=view-logs`
-- `external_component_url=https://<rocketchat-host>/logs-viewer/`
+- `external_component_url=https://<your-hosted-logs-viewer-url>`
 
 First-time operator path (recommended): [`docs/DEPLOYMENT_QUICKSTART.md`](docs/DEPLOYMENT_QUICKSTART.md)
-Same-origin setup reference: [`docs/SAME_ORIGIN_SETUP.md`](docs/SAME_ORIGIN_SETUP.md)
+Same-origin (optional advanced) reference: [`docs/SAME_ORIGIN_SETUP.md`](docs/SAME_ORIGIN_SETUP.md)
+GitOps same-origin manifests: [`deploy/k8s/logs-viewer-web/README.md`](deploy/k8s/logs-viewer-web/README.md)
 
 ## Security posture
 

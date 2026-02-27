@@ -10,6 +10,7 @@
     "build": "bun run build:app && bun run build:web",
     "build:app": "tsc -p tsconfig.json",
     "build:web": "bun run --cwd web build",
+    "build:web:same-origin": "bun run --cwd web build -- --base /logs-viewer/",
     "dev:web": "bun run --cwd web dev",
     "test": "bun test",
     "typecheck": "tsc -p tsconfig.json --noEmit && bun run --cwd web typecheck",
