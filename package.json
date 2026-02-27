@@ -14,7 +14,8 @@
     "test": "bun test",
     "typecheck": "tsc -p tsconfig.json --noEmit && bun run --cwd web typecheck",
     "package": "bunx @rocket.chat/apps-cli package --experimental-native-compiler",
-    "deploy": "bunx @rocket.chat/apps-cli deploy --experimental-native-compiler"
+    "deploy": "bunx @rocket.chat/apps-cli deploy --experimental-native-compiler",
+    "deploy:web": "bash scripts/deploy-web.sh"
   },
   "dependencies": {},
   "devDependencies": {

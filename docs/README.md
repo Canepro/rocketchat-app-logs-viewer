@@ -4,15 +4,17 @@ Use this index to find canonical docs quickly and avoid drift.
 
 ## 1. Core docs (living guides)
 
-1. `docs/IMPLEMENTATION.md` — code map and current behavior.
-2. `docs/API_CONTRACT.md` — app API schema and auth model.
-3. `docs/USER_GUIDE.md` — operator/end-user usage and troubleshooting.
-4. `docs/RUNBOOK.md` — install, validation, rollback, and escalation.
-5. `docs/EXECUTION_PLAN.md` — delivery phases and quality gates.
-6. `docs/FRONTEND_REDESIGN_PLAN.md` — frontend roadmap/status.
-7. `docs/STACK.md` — Bun + frontend stack standards.
-8. `docs/VERSION_TRACKER.md` — released versions and next-cut guidance.
-9. `docs/DRIFT_REGISTER.md` — tracked drift and resolution state.
+1. `docs/DEPLOYMENT_QUICKSTART.md` — first-time install and deploy path (start here if you are new).
+2. `docs/SAME_ORIGIN_SETUP.md` — recommended same-origin hosting path for `external_component_url`.
+3. `docs/RUNBOOK.md` — install, validation, rollback, and escalation.
+4. `docs/USER_GUIDE.md` — operator/end-user usage and troubleshooting.
+5. `docs/IMPLEMENTATION.md` — code map and current behavior.
+6. `docs/API_CONTRACT.md` — app API schema and auth model.
+7. `docs/EXECUTION_PLAN.md` — delivery phases and quality gates.
+8. `docs/FRONTEND_REDESIGN_PLAN.md` — frontend roadmap/status.
+9. `docs/STACK.md` — Bun + frontend stack standards.
+10. `docs/VERSION_TRACKER.md` — released versions and next-cut guidance.
+11. `docs/DRIFT_REGISTER.md` — tracked drift and resolution state.
 
 ## 2. Release governance docs
 
