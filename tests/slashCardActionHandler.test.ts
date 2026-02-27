@@ -440,6 +440,7 @@ describe('slashCardActionHandler', () => {
 
     it('loads sample lines from persisted snapshot when payload only includes snapshot id', async () => {
         const notifications: Array<any> = [];
+        const freshSnapshotIso = new Date().toISOString();
         const modify: any = {
             getCreator: () => ({
                 startMessage: () => createMessageBuilder(),
@@ -458,11 +459,11 @@ describe('slashCardActionHandler', () => {
         };
 
         const slashSnapshotStoreRecord = {
-            updatedAt: '2026-02-26T00:00:00.000Z',
+            updatedAt: freshSnapshotIso,
             entries: [
                 {
                     id: 'snap_abc',
-                    createdAt: '2026-02-26T00:00:00.000Z',
+                    createdAt: freshSnapshotIso,
                     roomId: 'room-1',
                     roomName: 'Support_Stuff',
                     threadId: 'thread-1',
@@ -660,6 +661,7 @@ describe('slashCardActionHandler', () => {
 
     it('preserves long snapshot line text in copy output', async () => {
         const notifications: Array<any> = [];
+        const freshSnapshotIso = new Date().toISOString();
         const modify: any = {
             getCreator: () => ({
                 startMessage: () => createMessageBuilder(),
@@ -678,11 +680,11 @@ describe('slashCardActionHandler', () => {
         };
 
         const slashSnapshotStoreRecord = {
-            updatedAt: '2026-02-26T00:00:00.000Z',
+            updatedAt: freshSnapshotIso,
             entries: [
                 {
                     id: 'snap_long',
-                    createdAt: '2026-02-26T00:00:00.000Z',
+                    createdAt: freshSnapshotIso,
                     roomId: 'room-1',
                     roomName: 'Support_Stuff',
                     threadId: 'thread-1',
