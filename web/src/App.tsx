@@ -84,6 +84,45 @@ const ENTRY_PREVIEW_MAX_CHARS = 520;
 const ENTRY_LABELS_PREVIEW_COUNT = 6;
 const ENTRY_LABELS_EXPANDED_COUNT = 18;
 const COPY_ROW_FEEDBACK_MS = 2500;
+const UI_PREFERENCES_STORAGE_KEY = 'logs-viewer.ui-preferences.v1';
+
+type UiPreferences = {
+  messageViewMode: 'raw' | 'pretty';
+  wrapLogLines: boolean;
+  desktopSidebarOpen: boolean;
+};
+
+const defaultDesktopSidebarOpen = (source?: string): boolean => source !== 'slash';
+
+const readUiPreferences = (source?: string): UiPreferences => {
+  const defaults: UiPreferences = {
+    messageViewMode: 'pretty',
+    wrapLogLines: true,
+    desktopSidebarOpen: defaultDesktopSidebarOpen(source),
+  };
+
+  if (typeof window === 'undefined') {
+    return defaults;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(UI_PREFERENCES_STORAGE_KEY);
+    if (!raw) {
+      return defaults;
+    }
+
+    const parsed = JSON.parse(raw) as Partial<UiPreferences>;
+    return {
+      messageViewMode: parsed.messageViewMode === 'raw' ? 'raw' : 'pretty',
+      wrapLogLines: typeof parsed.wrapLogLines === 'boolean' ? parsed.wrapLogLines : defaults.wrapLogLines,
+      desktopSidebarOpen: typeof parsed.desktopSidebarOpen === 'boolean'
+        ? parsed.desktopSidebarOpen
+        : defaults.desktopSidebarOpen,
+    };
+  } catch {
+    return defaults;
+  }
+};
 
 const parseQueryLevel = (value: string | null): QueryLevel | undefined => {
   if (!value) {
@@ -276,6 +315,7 @@ const summarizeRenderedMessage = (message: string, expanded: boolean): {
 export function App() {
   const runtime = useMemo(() => getRuntimeConnection(), []);
   const prefill = useMemo(readPrefillFromLocation, []);
+  const initialUiPreferences = useMemo(() => readUiPreferences(prefill.context.source), [prefill.context.source]);
 
   const [timeMode, setTimeMode] = useState<'relative' | 'absolute'>(prefill.timeMode);
   const [since, setSince] = useState(prefill.since || '15m');
@@ -289,8 +329,8 @@ export function App() {
   const [isPolling, setIsPolling] = useState(false);
   const [pollingError, setPollingError] = useState<string | null>(null);
   const [pollingTickCount, setPollingTickCount] = useState(0);
-  const [messageViewMode, setMessageViewMode] = useState<'raw' | 'pretty'>('pretty');
-  const [wrapLogLines, setWrapLogLines] = useState(true);
+  const [messageViewMode, setMessageViewMode] = useState<'raw' | 'pretty'>(initialUiPreferences.messageViewMode);
+  const [wrapLogLines, setWrapLogLines] = useState(initialUiPreferences.wrapLogLines);
   const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
   const [copiedRowIndex, setCopiedRowIndex] = useState<number | null>(null);
   const [copyRowError, setCopyRowError] = useState<string | null>(null);
@@ -324,7 +364,7 @@ export function App() {
 
   const isDesktop = useMediaQuery(SIDEBAR_INLINE_BREAKPOINT);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(initialUiPreferences.desktopSidebarOpen);
   const sidebarVisible = isDesktop ? desktopSidebarOpen : sidebarOpen;
   const handleSidebarOpenChange = useCallback((open: boolean) => {
     if (isDesktop) {
@@ -645,6 +685,25 @@ export function App() {
       setSelectedSavedViewId('');
     }
   }, [availableSavedViews, selectedSavedViewId]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(
+        UI_PREFERENCES_STORAGE_KEY,
+        JSON.stringify({
+          messageViewMode,
+          wrapLogLines,
+          desktopSidebarOpen,
+        } satisfies UiPreferences),
+      );
+    } catch {
+      // Ignore storage write failures and continue with in-memory preferences.
+    }
+  }, [desktopSidebarOpen, messageViewMode, wrapLogLines]);
 
   const buildSavedViewQueryFromForm = useCallback((): SavedViewQuery | null => {
     const parsedLimit = Math.max(1, Number(limit) || 500);
@@ -1557,6 +1616,7 @@ export function App() {
                   </Button>
                   <span className="text-xs text-muted-foreground">rows {entries.length}</span>
                   <span className="text-xs text-muted-foreground">expanded {expandedRowCount}</span>
+                  {isDesktop && !desktopSidebarOpen ? <Badge variant="outline">filters hidden</Badge> : null}
                   {copyRowError ? (
                     <Alert variant="destructive" className="w-full py-2">{copyRowError}</Alert>
                   ) : null}

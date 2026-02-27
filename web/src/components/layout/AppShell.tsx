@@ -84,7 +84,7 @@ export const AppShell = React.forwardRef<HTMLDivElement, AppShellProps>(
           ) : null}
           {!isDrawerMode && showSidebar ? (
             <aside
-              className="flex w-[392px] shrink-0 flex-col border-r border-border/70 bg-card/50 overflow-y-auto"
+              className="flex w-[368px] shrink-0 flex-col border-r border-border/70 bg-card/50 overflow-y-auto"
               aria-label="Filters and controls"
             >
               {sidebar}
