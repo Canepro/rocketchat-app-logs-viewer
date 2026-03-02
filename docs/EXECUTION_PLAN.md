@@ -146,7 +146,7 @@ Definition of done:
 
 ## 6. Phase status snapshot
 
-As of 2026-02-26:
+As of 2026-03-02:
 
 - Phase 1 completed:
   - API contract document (`docs/API_CONTRACT.md`)
@@ -196,12 +196,12 @@ As of 2026-02-26:
     - Operator runbook baseline (`docs/RUNBOOK.md`) covering install, validation, rollback, troubleshooting, and escalation data.
     - Marketplace submission checklist baseline (`docs/MARKETPLACE_CHECKLIST.md`) covering packaging, security, QA, docs, and signoff gates.
     - Release governance workflow baseline (`docs/RELEASE_WORKFLOW.md`) with semantic versioning policy, verification gates, and release evidence requirements.
-    - Root changelog tracking now includes stable `0.1.2` cut (`CHANGELOG.md`).
+    - Root changelog tracking now includes stable `0.1.3` cut (`CHANGELOG.md`).
     - Packaging pipeline hardening for monorepo layout (`--experimental-native-compiler` + `.rcappsconfig` ignore policy + devDependency alignment for `@rocket.chat/apps-engine`)
     - Stable release governance artifacts:
-      - app version `0.1.2` in `app.json`
-      - packaged artifact `dist/logs-viewer_0.1.2.zip`
-      - tags `v0.1.1-pre` (historical), `v0.1.1`, and `v0.1.2` (stable)
+      - app version `0.1.3` in `app.json`
+      - packaged artifact `dist/logs-viewer_0.1.3.zip`
+      - tags `v0.1.1-pre` (historical), `v0.1.1`, `v0.1.2`, and `v0.1.3` (stable)
   - Remaining:
     - Final marketplace submission packet signoff and submission handoff.
 

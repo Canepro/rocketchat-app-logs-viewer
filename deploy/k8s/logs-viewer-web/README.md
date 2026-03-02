@@ -11,7 +11,7 @@ This avoids local filesystem sync and fits GitOps workflows.
 Use the published image that is released from this repository:
 
 - image repository: `ghcr.io/canepro/rocketchat-app-logs-viewer-web`
-- default manifest tag: `v0.1.2`
+- default manifest tag: `v0.1.3`
 
 Update only these environment values before apply:
 

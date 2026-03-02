@@ -14,7 +14,7 @@ Last updated: 2026-03-02
 
 Use image + manifests (no local `/srv` sync):
 
-1. Use published image `ghcr.io/canepro/rocketchat-app-logs-viewer-web:v0.1.2` (default in deployment manifest)
+1. Use published image `ghcr.io/canepro/rocketchat-app-logs-viewer-web:v0.1.3` (default in deployment manifest)
 2. Commit/apply manifests under `deploy/k8s/logs-viewer-web/` via your GitOps repo
 3. Update ingress host/TLS values for your environment
 4. Set app setting:

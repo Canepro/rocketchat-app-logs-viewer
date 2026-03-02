@@ -4,8 +4,8 @@ This file documents the current scaffold and implemented backend behavior.
 
 ## 0. Version snapshot
 
-- `app.json` version: `0.1.2`
-- Current stable release: `0.1.2` (see `CHANGELOG.md`)
+- `app.json` version: `0.1.3`
+- Current stable release: `0.1.3` (see `CHANGELOG.md`)
 - Ongoing changes are tracked under `Unreleased` in `CHANGELOG.md` and mapped in `docs/VERSION_TRACKER.md`.
 
 ## 1. Code map
