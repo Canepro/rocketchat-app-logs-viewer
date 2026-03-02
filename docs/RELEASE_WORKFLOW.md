@@ -29,6 +29,7 @@ Required references before cutting a release:
 9. `CHANGELOG.md` version section for release notes
 10. GitHub release draft (or release ticket) with artifact and evidence links
 11. `.github/workflows/web-image-release.yml` (container release automation)
+12. `.github/workflows/github-release.yml` (GitHub Release publication automation)
 
 ## 3. Versioning policy
 
@@ -72,6 +73,10 @@ Run and record:
   - `.github/workflows/web-image-release.yml`
 7. Confirm released image exists in GHCR:
   - `ghcr.io/canepro/rocketchat-app-logs-viewer-web:vX.Y.Z`
+8. Confirm GitHub Release publication workflow is green:
+  - `.github/workflows/github-release.yml`
+9. Confirm GitHub Release object exists for the tag:
+  - `gh release view vX.Y.Z`
 
 Optional helper (recommended before cutting a release):
 
@@ -102,6 +107,7 @@ For each release, capture:
 4. deployment timestamp
 5. approver/signoff names (engineering, security, product, operations)
 6. published web image reference(s) for same-origin deploys
+7. published GitHub release URL (for example `/releases/tag/vX.Y.Z`)
 
 Store this evidence in your release ticket or release notes record.
 

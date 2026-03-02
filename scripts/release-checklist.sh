@@ -187,6 +187,7 @@ check_file_exists "docs/VERSION_TRACKER.md"
 check_file_exists "docs/GITHUB_PUSH_PLAN.md"
 check_file_exists ".github/workflows/ci.yml"
 check_file_exists ".github/workflows/web-image-release.yml"
+check_file_exists ".github/workflows/github-release.yml"
 
 if rg -n "\"@rocket.chat/apps-engine\"" package.json >/dev/null 2>&1; then
   pass "@rocket.chat/apps-engine is present in package.json"

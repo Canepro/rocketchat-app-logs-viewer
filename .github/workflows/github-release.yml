@@ -1,0 +1,67 @@
+name: Publish GitHub Release
+
+on:
+  # Publish a GitHub Release object for stable semver tags.
+  push:
+    tags:
+      - "v*.*.*"
+  # Allow maintainers to re-run release publication manually.
+  workflow_dispatch:
+
+permissions:
+  # Required to create and edit GitHub Releases.
+  contents: write
+
+concurrency:
+  group: github-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare release notes from changelog
+        id: prepare
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Non-stable semver tag detected ($tag); skipping release publish."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          version="${tag#v}"
+          notes_file="/tmp/release-notes-${tag}.md"
+          awk "/^## \\[$version\\]/{flag=1;next}/^## \\[/{if(flag){exit}}flag" CHANGELOG.md > "$notes_file"
+
+          if [[ ! -s "$notes_file" ]]; then
+            echo "Failed to extract notes for $version from CHANGELOG.md" >&2
+            exit 1
+          fi
+
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "notes_file=$notes_file" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update release
+        if: steps.prepare.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="${{ steps.prepare.outputs.tag }}"
+          notes_file="${{ steps.prepare.outputs.notes_file }}"
+
+          # Idempotent behavior: reruns update existing release notes/title.
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" --title "$tag" --notes-file "$notes_file" --latest
+          else
+            gh release create "$tag" --verify-tag --title "$tag" --notes-file "$notes_file" --latest
+          fi

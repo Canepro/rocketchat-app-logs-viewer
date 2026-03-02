@@ -4,7 +4,14 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
-No changes yet.
+### Added
+
+- Automated GitHub Release publication workflow (`.github/workflows/github-release.yml`) for semver tags (`vX.Y.Z`) using release notes extracted from `CHANGELOG.md`.
+
+### Changed
+
+- Release checklist now enforces presence of GitHub Release automation workflow.
+- Release workflow documentation now requires GitHub Release object verification (`gh release view vX.Y.Z`) as a completion gate.
 
 ## [0.1.3] - 2026-03-02
 
