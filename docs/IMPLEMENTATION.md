@@ -4,8 +4,8 @@ This file documents the current scaffold and implemented backend behavior.
 
 ## 0. Version snapshot
 
-- `app.json` version: `0.1.1`
-- Current stable release: `0.1.1` (see `CHANGELOG.md`)
+- `app.json` version: `0.1.2`
+- Current stable release: `0.1.2` (see `CHANGELOG.md`)
 - Ongoing changes are tracked under `Unreleased` in `CHANGELOG.md` and mapped in `docs/VERSION_TRACKER.md`.
 
 ## 1. Code map
@@ -218,6 +218,7 @@ This file documents the current scaffold and implemented backend behavior.
 4. Post-v1 roadmap spikes
    - Evaluate stream-style diagnostics (SSE/WebSocket) only with explicit contract + threat model first.
    - Keep `/export` as backlog until stream-vs-polling direction is finalized.
+   - Keep no-Loki backend expansion (`k8s_logs` mode and Docker/Podman runtime-agent mode) as backlog until security and access-control model is approved.
 
 ## 4. Current slash presets
 

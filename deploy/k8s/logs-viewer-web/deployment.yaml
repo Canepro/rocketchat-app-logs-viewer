@@ -5,22 +5,50 @@ metadata:
   labels:
     app.kubernetes.io/name: logs-viewer-web
 spec:
+  # Single replica is enough for small teams; scale out if you expect heavy web traffic.
   replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: logs-viewer-web
   template:
     metadata:
+      # Bump this value when nginx config changes to force rollout in GitOps-only flows.
+      annotations:
+        canepro.me/logs-viewer-nginx-rev: "2026-03-02-01"
       labels:
         app.kubernetes.io/name: logs-viewer-web
     spec:
+      # Pod-level defaults for writable group ownership and seccomp baseline.
+      securityContext:
+        fsGroup: 101
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: nginx
-          # Replace with your published image.
-          image: ghcr.io/example-org/rocketchat-app-logs-viewer-web:0.1.1
+          # Public-first default: maintained release image published from this repository.
+          image: ghcr.io/canepro/rocketchat-app-logs-viewer-web:v0.1.2
           ports:
             - name: http
-              containerPort: 80
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "32Mi"
+              ephemeral-storage: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+              ephemeral-storage: "256Mi"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 101
+            runAsGroup: 101
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           readinessProbe:
             httpGet:
               path: /healthz
@@ -35,9 +63,23 @@ spec:
             periodSeconds: 10
           volumeMounts:
             - name: nginx-config
-              mountPath: /etc/nginx/conf.d
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
               readOnly: true
+            # readOnlyRootFilesystem requires explicit writable mounts for nginx runtime dirs.
+            - name: cache
+              mountPath: /var/cache/nginx
+            - name: run
+              mountPath: /var/run
+            - name: tmp
+              mountPath: /tmp
       volumes:
         - name: nginx-config
           configMap:
             name: logs-viewer-web-nginx
+        - name: cache
+          emptyDir: {}
+        - name: run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

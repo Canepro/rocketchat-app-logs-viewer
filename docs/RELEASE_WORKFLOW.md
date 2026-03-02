@@ -2,7 +2,7 @@
 
 Standard workflow for versioning, changelog updates, package validation, and release evidence.
 
-Last updated: 2026-02-27
+Last updated: 2026-03-02
 
 ## 1. Purpose
 
@@ -28,6 +28,7 @@ Required references before cutting a release:
 8. `docs/SMOKE_CHECKLIST.md` (version-matched smoke run sheet entries)
 9. `CHANGELOG.md` version section for release notes
 10. GitHub release draft (or release ticket) with artifact and evidence links
+11. `.github/workflows/web-image-release.yml` (container release automation)
 
 ## 3. Versioning policy
 
@@ -55,6 +56,8 @@ If uncertain between `MINOR` and `PATCH`, choose `PATCH` only when user-facing b
 5. Confirm packaging prerequisites:
   - `@rocket.chat/apps-engine` is present in `devDependencies`
   - `.rcappsconfig` ignore list covers non-app workspace paths
+6. If same-origin manifests are part of the release, align web image tag in:
+  - `deploy/k8s/logs-viewer-web/deployment.yaml`
 
 ## 4.2 Verification gates
 
@@ -65,6 +68,10 @@ Run and record:
 3. `bun run build`
 4. `bun run package`
 5. Confirm GitHub CI workflow (`.github/workflows/ci.yml`) is green for the release commit/PR.
+6. For semver release tags (`vX.Y.Z`), confirm container workflow is green:
+  - `.github/workflows/web-image-release.yml`
+7. Confirm released image exists in GHCR:
+  - `ghcr.io/canepro/rocketchat-app-logs-viewer-web:vX.Y.Z`
 
 Optional helper (recommended before cutting a release):
 
@@ -94,6 +101,7 @@ For each release, capture:
 3. verification command results
 4. deployment timestamp
 5. approver/signoff names (engineering, security, product, operations)
+6. published web image reference(s) for same-origin deploys
 
 Store this evidence in your release ticket or release notes record.
 

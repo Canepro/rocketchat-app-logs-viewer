@@ -2,7 +2,7 @@
 
 This document tracks intentional and unintentional drift between product design docs and implemented code.
 
-Last updated: 2026-02-26
+Last updated: 2026-03-02
 
 ## Source-of-truth order
 
@@ -19,6 +19,7 @@ If two docs conflict, use this order and open/update a drift item.
 |----|------|----------------------|------------------------|----------|--------------|
 | DR-002 | Endpoint naming | Design examples use `/logs/query`, `/logs/config`, `/logs/audit` | App API paths are `/query`, `/config`, `/audit`, `/targets`, `/threads`, `/views`, `/actions` | Keep current paths for v1, document canonical paths in implementation docs, and avoid mixed examples in future docs | Phase 1 |
 | DR-003 | v1 feature definition | Design lists stream/export in core v1 narrative | Current app ships query/config/audit, slash deep links, row actions, targets/threads, saved views, and UI polling; no stream/export endpoint | Re-scope stream/export to v1.1 backlog until tests and security hardening baseline are complete | Phase 2 |
+| DR-004 | No-Loki deployment coverage | Operators expect viable no-Loki options for Kubernetes and Docker/Podman deployments | Current implementation supports `loki` and `app_logs` source modes only; no direct Kubernetes API mode and no container-runtime agent mode | Track `k8s_logs` and runtime-agent modes as post-v1 backlog; do not expand current release scope until threat model and RBAC/audit controls are specified | Phase 2 backlog |
 
 ## Closed drift items
 

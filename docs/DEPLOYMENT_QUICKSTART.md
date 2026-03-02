@@ -2,7 +2,7 @@
 
 Step-by-step deployment guide for a first-time operator.
 
-Last updated: 2026-02-27
+Last updated: 2026-03-02
 
 ## 1. What you are deploying
 
@@ -68,10 +68,11 @@ Use one of these options:
    - upload `resources/web/` to static host/CDN and use that URL
    - set `external_component_url` to that hosted URL
 2. Same-origin path (optional advanced mode):
-   - serve `resources/web/` at `https://<rocketchat-host>/logs-viewer/`
+   - serve Logs Viewer web at `https://<rocketchat-host>/logs-viewer/`
    - set `external_component_url=https://<rocketchat-host>/logs-viewer/`
    - use this when you control ingress/reverse-proxy routing
-   - for GitOps/Kubernetes, prefer image + manifests from `deploy/k8s/logs-viewer-web/`
+   - for GitOps/Kubernetes, prefer public image + manifests from `deploy/k8s/logs-viewer-web/`
+   - default public image: `ghcr.io/canepro/rocketchat-app-logs-viewer-web:v0.1.2`
    - auth note: users must open from an active Rocket.Chat browser session on the same origin (or configure token mode for web UI)
 3. Local-only testing:
    - use `http://localhost:5173` with `bun run dev:web`

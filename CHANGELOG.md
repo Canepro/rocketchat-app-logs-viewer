@@ -6,6 +6,39 @@ All notable changes to this project are documented in this file.
 
 No changes yet.
 
+## [0.1.2] - 2026-03-02
+
+### Added
+
+- Public-first web image release pipeline:
+  - `.github/workflows/web-image-release.yml` now builds and publishes `web/Dockerfile.same-origin` to GHCR on `main` and `v*.*.*` tags.
+  - release tags now produce traceable image tags (`vX.Y.Z`, semver aliases, `sha-*`, and `latest` on `main`).
+
+### Changed
+
+- Same-origin web deployment defaults now target the official public image:
+  - `ghcr.io/canepro/rocketchat-app-logs-viewer-web:v0.1.2`
+- Kubernetes same-origin manifests hardened with safer runtime defaults:
+  - unprivileged container port (`8080`)
+  - non-root security context, read-only root filesystem, dropped Linux capabilities
+  - explicit CPU/memory/ephemeral-storage requests and limits
+  - writable `emptyDir` mounts for nginx runtime directories
+- Same-origin nginx routing defaults improved:
+  - `/logs-viewer` canonical redirect to `/logs-viewer/`
+  - strict `/logs-viewer/assets/*` handling to avoid SPA fallback masking asset 404s
+
+### Security
+
+- Web runtime container now defaults to `nginxinc/nginx-unprivileged:1.27-alpine`.
+- Same-origin deployment manifests now enforce `seccompProfile: RuntimeDefault` and disable privilege escalation.
+
+### Docs
+
+- Updated same-origin deployment docs for public-first usage:
+  - deploy using published image by default
+  - build/push flow moved to maintainer/contributor workflow
+- Updated release governance docs to include container-image release checkpoints.
+
 ## [0.1.1] - 2026-02-26
 
 ### Added

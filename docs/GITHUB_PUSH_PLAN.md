@@ -1,8 +1,8 @@
 # GitHub Push Plan
 
-Professional push and branch strategy for ongoing delivery after `v0.1.1`.
+Professional push and branch strategy for ongoing delivery after `v0.1.2`.
 
-Last updated: 2026-02-26
+Last updated: 2026-03-02
 
 ## 0. Current repository state
 
@@ -10,8 +10,8 @@ Last updated: 2026-02-26
   - remote: `origin=https://github.com/Canepro/rocketchat-app-logs-viewer.git`
   - default branch: `main`
 - Latest stable cut is on `main`:
-  - app version: `0.1.1`
-  - tags: `v0.1.1-pre` and `v0.1.1`
+  - app version: `0.1.2`
+  - tags: `v0.1.1-pre` (historical), `v0.1.1`, and `v0.1.2`
   - merged delivery PR: `#1`
 
 ## 1. Preconditions before each push
@@ -33,7 +33,7 @@ Last updated: 2026-02-26
    - `bun run package`
 3. Release intent is explicit:
    - `Unreleased` update only, or
-   - version cut (`0.1.2`/`0.2.0`) with changelog + tag.
+   - version cut (`0.1.3`/`0.2.0`) with changelog + tag.
 
 ## 2. Parallel branch model
 
@@ -73,7 +73,7 @@ Prefer small, auditable commits grouped by concern.
 
 Examples:
 
-1. `docs: align release and handoff state for v0.1.1`
+1. `docs: align release and handoff state for v0.1.2`
 2. `fix(app): harden slash share flow for message size limits`
 3. `feat(web): improve query row readability controls`
 4. `test: add regression coverage for slash card actions`
