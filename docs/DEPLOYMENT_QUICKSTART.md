@@ -72,7 +72,7 @@ Use one of these options:
    - set `external_component_url=https://<rocketchat-host>/logs-viewer/`
    - use this when you control ingress/reverse-proxy routing
    - for GitOps/Kubernetes, prefer public image + manifests from `deploy/k8s/logs-viewer-web/`
-   - default public image: `ghcr.io/canepro/rocketchat-app-logs-viewer-web:v0.1.2`
+   - default public image: `ghcr.io/canepro/rocketchat-app-logs-viewer-web:v0.1.3`
    - auth note: users must open from an active Rocket.Chat browser session on the same origin (or configure token mode for web UI)
 3. Local-only testing:
    - use `http://localhost:5173` with `bun run dev:web`

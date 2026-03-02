@@ -6,6 +6,19 @@ All notable changes to this project are documented in this file.
 
 No changes yet.
 
+## [0.1.3] - 2026-03-02
+
+### Fixed
+
+- Same-origin web image build path mismatch in `web/Dockerfile.same-origin`:
+  - changed runtime copy source from `/app/web/dist` to `/app/resources/web`
+  - aligns Docker image build with `web/vite.config.ts` output path (`../resources/web`)
+  - resolves `Publish Logs Viewer Web Image` workflow failures (`/app/web/dist` not found)
+
+### Docs
+
+- Updated public-default image references and release-tracking docs to `v0.1.3`.
+
 ## [0.1.2] - 2026-03-02
 
 ### Added
