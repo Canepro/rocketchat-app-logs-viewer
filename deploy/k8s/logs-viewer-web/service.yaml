@@ -8,6 +8,7 @@ spec:
   selector:
     app.kubernetes.io/name: logs-viewer-web
   ports:
+    # Service stays on 80 while forwarding to unprivileged container port via named target.
     - name: http
       port: 80
       targetPort: http

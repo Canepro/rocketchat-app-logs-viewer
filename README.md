@@ -100,6 +100,7 @@ bun run deploy:web -- --target /srv/rocketchat/logs-viewer
 For GitOps/Kubernetes environments, use image + manifests instead:
 - `web/Dockerfile.same-origin`
 - `deploy/k8s/logs-viewer-web/`
+- public default image: `ghcr.io/canepro/rocketchat-app-logs-viewer-web:v0.1.2`
 
 ## Core settings (operator)
 

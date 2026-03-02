@@ -5,7 +5,8 @@ metadata:
 data:
   default.conf: |
     server {
-      listen 80;
+      # Match the unprivileged nginx container port.
+      listen 8080;
       server_name _;
       root /usr/share/nginx/html;
       index index.html;
@@ -15,6 +16,18 @@ data:
         return 200 'ok';
       }
 
+      # Canonicalize to /logs-viewer/ so relative asset URLs resolve consistently.
+      location = /logs-viewer {
+        return 301 https://$host/logs-viewer/;
+      }
+
+      # Keep static asset errors explicit instead of falling through to index.html.
+      location /logs-viewer/assets/ {
+        rewrite ^/logs-viewer/assets/(.*)$ /$1 break;
+        try_files $uri =404;
+      }
+
+      # Strip /logs-viewer prefix and route client-side paths through SPA entrypoint.
       location /logs-viewer/ {
         rewrite ^/logs-viewer/(.*)$ /$1 break;
         try_files $uri $uri/ /index.html;

@@ -6,11 +6,14 @@ COPY package.json bun.lock tsconfig.json ./
 COPY web ./web
 
 RUN bun install --frozen-lockfile
+# Build with the /logs-viewer/ base so asset URLs resolve behind ingress path routing.
 RUN bun run --cwd web build -- --base /logs-viewer/
 
-FROM nginx:1.27-alpine
+# Unprivileged nginx image removes the need for root in the runtime container.
+FROM nginxinc/nginx-unprivileged:1.27-alpine
 
 COPY web/nginx.same-origin.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/web/dist /usr/share/nginx/html
 
-EXPOSE 80
+# nginxinc/nginx-unprivileged listens on 8080 by default.
+EXPOSE 8080

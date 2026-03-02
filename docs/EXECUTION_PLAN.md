@@ -2,7 +2,7 @@
 
 Enterprise-grade delivery plan for v1 hardening and controlled feature expansion.
 
-Last updated: 2026-02-26
+Last updated: 2026-03-02
 
 ## 1. Objectives
 
@@ -187,17 +187,21 @@ As of 2026-02-26:
   - Remaining:
     - Optional stream-mode design spike (SSE/WebSocket) with security and rate-control review before any server-push implementation
     - Export workflow backlog (`/export`) after stream-vs-polling direction is finalized
+    - No-Loki backend mode backlog (design-only for now):
+      - `k8s_logs` source mode via Kubernetes API for cluster deployments without Loki
+      - runtime-agent source mode for Docker/Podman-hosted Rocket.Chat environments
+      - require explicit security model (scoping, authz, audit, and rate controls) before implementation
 - Phase 3 in progress:
   - Completed:
     - Operator runbook baseline (`docs/RUNBOOK.md`) covering install, validation, rollback, troubleshooting, and escalation data.
     - Marketplace submission checklist baseline (`docs/MARKETPLACE_CHECKLIST.md`) covering packaging, security, QA, docs, and signoff gates.
     - Release governance workflow baseline (`docs/RELEASE_WORKFLOW.md`) with semantic versioning policy, verification gates, and release evidence requirements.
-    - Root changelog tracking now includes stable `0.1.1` cut (`CHANGELOG.md`).
+    - Root changelog tracking now includes stable `0.1.2` cut (`CHANGELOG.md`).
     - Packaging pipeline hardening for monorepo layout (`--experimental-native-compiler` + `.rcappsconfig` ignore policy + devDependency alignment for `@rocket.chat/apps-engine`)
     - Stable release governance artifacts:
-      - app version `0.1.1` in `app.json`
-      - packaged artifact `dist/logs-viewer_0.1.1.zip`
-      - tags `v0.1.1-pre` (historical) and `v0.1.1` (stable)
+      - app version `0.1.2` in `app.json`
+      - packaged artifact `dist/logs-viewer_0.1.2.zip`
+      - tags `v0.1.1-pre` (historical), `v0.1.1`, and `v0.1.2` (stable)
   - Remaining:
     - Final marketplace submission packet signoff and submission handoff.
 

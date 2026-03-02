@@ -109,6 +109,10 @@ fi
 
 APP_VERSION="$(node -p "require('./app.json').version" 2>/dev/null || true)"
 PKG_VERSION="$(node -p "require('./package.json').version" 2>/dev/null || true)"
+DEPLOYMENT_IMAGE="$(
+  awk '/^[[:space:]]*image:[[:space:]]/ {print $2; exit}' \
+    deploy/k8s/logs-viewer-web/deployment.yaml 2>/dev/null || true
+)"
 
 if [[ -n "$APP_VERSION" ]]; then
   pass "app.json version detected: $APP_VERSION"
@@ -120,6 +124,12 @@ if [[ -n "$PKG_VERSION" ]]; then
   pass "package.json version detected: $PKG_VERSION"
 else
   warn "Unable to read package.json version"
+fi
+
+if [[ -n "$DEPLOYMENT_IMAGE" ]]; then
+  pass "Deployment image detected: $DEPLOYMENT_IMAGE"
+else
+  fail "Unable to read deployment image from deploy/k8s/logs-viewer-web/deployment.yaml"
 fi
 
 if [[ -n "$RELEASE_VERSION" && -n "$APP_VERSION" ]]; then
@@ -150,6 +160,23 @@ else
   fail "APP_VERSION is empty; cannot verify docs/VERSION_TRACKER.md references"
 fi
 
+if [[ -n "$APP_VERSION" && -n "$DEPLOYMENT_IMAGE" ]]; then
+  # Keep same-origin default deployment pinned to the same release version for reproducibility.
+  if [[ "$DEPLOYMENT_IMAGE" == *":v$APP_VERSION" ]]; then
+    pass "Deployment image tag matches app.json version: v$APP_VERSION"
+  else
+    warn "Deployment image tag does not match app.json version ($APP_VERSION): $DEPLOYMENT_IMAGE"
+  fi
+fi
+
+if [[ -n "$DEPLOYMENT_IMAGE" ]]; then
+  if [[ "$DEPLOYMENT_IMAGE" == ghcr.io/canepro/rocketchat-app-logs-viewer-web:* ]]; then
+    pass "Deployment image uses official public-first GHCR repository"
+  else
+    warn "Deployment image is not using official GHCR repository: $DEPLOYMENT_IMAGE"
+  fi
+fi
+
 check_file_exists ".rcappsconfig"
 check_file_exists "CHANGELOG.md"
 check_file_exists "docs/RELEASE_WORKFLOW.md"
@@ -159,6 +186,7 @@ check_file_exists "docs/SMOKE_CHECKLIST.md"
 check_file_exists "docs/VERSION_TRACKER.md"
 check_file_exists "docs/GITHUB_PUSH_PLAN.md"
 check_file_exists ".github/workflows/ci.yml"
+check_file_exists ".github/workflows/web-image-release.yml"
 
 if rg -n "\"@rocket.chat/apps-engine\"" package.json >/dev/null 2>&1; then
   pass "@rocket.chat/apps-engine is present in package.json"

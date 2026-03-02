@@ -6,7 +6,7 @@ Serve the Logs Viewer UI at:
 
 This is an optional advanced mode. Use it when you control ingress/proxy routing and want same-origin app API behavior.
 
-Last updated: 2026-02-27
+Last updated: 2026-03-02
 
 ## 1. Pick deployment mode
 
@@ -14,9 +14,10 @@ Last updated: 2026-02-27
 
 Use image + manifests (no local `/srv` sync):
 
-1. Build/push image from `web/Dockerfile.same-origin`
+1. Use published image `ghcr.io/canepro/rocketchat-app-logs-viewer-web:v0.1.2` (default in deployment manifest)
 2. Commit/apply manifests under `deploy/k8s/logs-viewer-web/` via your GitOps repo
-3. Set app setting:
+3. Update ingress host/TLS values for your environment
+4. Set app setting:
 
 ```text
 external_component_url=https://<rocketchat-host>/logs-viewer/
@@ -25,6 +26,10 @@ external_component_url=https://<rocketchat-host>/logs-viewer/
 Reference:
 
 - `deploy/k8s/logs-viewer-web/README.md`
+
+Maintainer note:
+
+- New image releases are published by tagging this repo with `vX.Y.Z` (workflow: `.github/workflows/web-image-release.yml`).
 
 ## 1.2 VM/filesystem mode (manual sync)
 

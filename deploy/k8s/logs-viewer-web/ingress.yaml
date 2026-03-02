@@ -2,10 +2,13 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: logs-viewer-web
+  # Add cert-manager annotation in overlays when managed certificates are enabled.
+  annotations: {}
 spec:
+  # Keep this overridable because many clusters use "nginx" or cloud-specific classes.
   ingressClassName: traefik
   rules:
-    # Replace with your Rocket.Chat public host.
+    # Replace with your Rocket.Chat public host (same origin as web client session).
     - host: rocketchat.example.com
       http:
         paths:
@@ -19,4 +22,5 @@ spec:
   tls:
     - hosts:
         - rocketchat.example.com
+      # Reuse the workspace TLS secret or provide a dedicated cert for this host.
       secretName: rocketchat-tls
