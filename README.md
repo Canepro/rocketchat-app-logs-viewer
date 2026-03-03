@@ -51,15 +51,15 @@ Sanitized screenshots for public showcase live under `evidence/screenshots/publi
 
 ### Slash command private triage card
 
-![Slash command private triage card](evidence/screenshots/public/Screenshot_Slash_Command.png)
+![Slash command private triage card](evidence/screenshots/public/slash-command-private-triage-card-redacted.png)
 
 ### Web UI deep inspection view
 
-![Web UI deep inspection view](evidence/screenshots/public/Screenshot_WebUI.png)
+![Web UI deep inspection view](evidence/screenshots/public/web-ui-deep-inspection-view-redacted.png)
 
 ### Share elsewhere flow
 
-![Share elsewhere flow](evidence/screenshots/public/Screenshot_Share_Elsewhere.png)
+![Share elsewhere flow](evidence/screenshots/public/share-elsewhere-flow-redacted.png)
 
 ## Tech stack
 
