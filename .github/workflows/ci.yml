@@ -21,7 +21,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - name: Checkout
+      # actions/checkout already retries internally, but explicit step retries
+      # reduce false negatives from transient GitHub-side 5xx fetch failures.
+      - name: Checkout (attempt 1)
+        id: checkout_attempt_1
+        continue-on-error: true
+        uses: actions/checkout@v4
+
+      - name: Checkout (attempt 2)
+        id: checkout_attempt_2
+        if: steps.checkout_attempt_1.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/checkout@v4
+
+      - name: Checkout (attempt 3)
+        if: steps.checkout_attempt_1.outcome == 'failure' && steps.checkout_attempt_2.outcome == 'failure'
         uses: actions/checkout@v4
 
       - name: Setup Bun

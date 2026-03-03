@@ -24,7 +24,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout
+      # Guard against transient GitHub fetch 5xx errors seen during checkout.
+      - name: Checkout (attempt 1)
+        id: checkout_attempt_1
+        continue-on-error: true
+        uses: actions/checkout@v4
+
+      - name: Checkout (attempt 2)
+        id: checkout_attempt_2
+        if: steps.checkout_attempt_1.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/checkout@v4
+
+      - name: Checkout (attempt 3)
+        if: steps.checkout_attempt_1.outcome == 'failure' && steps.checkout_attempt_2.outcome == 'failure'
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
