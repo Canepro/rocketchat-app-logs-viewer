@@ -45,6 +45,22 @@ Out of scope:
 4. App API enforces auth/RBAC/guardrails and queries Loki server-side.
 5. Actions are logged to audit storage for traceability.
 
+## UI showcase
+
+Sanitized screenshots for public showcase live under `evidence/screenshots/public/`.
+
+### Slash command private triage card
+
+![Slash command private triage card](evidence/screenshots/public/Screenshot_Slash_Command.png)
+
+### Web UI deep inspection view
+
+![Web UI deep inspection view](evidence/screenshots/public/Screenshot_WebUI.png)
+
+### Share elsewhere flow
+
+![Share elsewhere flow](evidence/screenshots/public/Screenshot_Share_Elsewhere.png)
+
 ## Tech stack
 
 - Runtime: Node.js (Rocket.Chat Apps-Engine)
