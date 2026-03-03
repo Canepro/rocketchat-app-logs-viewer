@@ -391,6 +391,22 @@ Notes:
 - Current web client attempts same-origin storage-based auth first, and can fall back between private/public app base paths for compatibility.
 - `401` means authentication context was not accepted; `403` means authenticated but denied by role/workspace-permission policy.
 
+## 7.11 GitHub Actions checkout fails with `HTTP 500`
+
+Symptom: CI fails in `actions/checkout` with fetch exit code `128` and `remote: Internal Server Error`.
+
+Checks:
+
+1. Re-run the failed workflow once; this class is usually transient.
+2. Check [GitHub Status](https://www.githubstatus.com/) for active incidents.
+3. If re-run succeeds, close the incident as transient infra failure (no product code regression).
+4. If failures persist across multiple reruns, confirm repository visibility/token scope and collect failing run URLs plus timestamps for GitHub Support.
+
+Notes:
+
+- CI/release workflows include explicit multi-attempt checkout steps to reduce false-negative failures from transient GitHub fetch outages.
+- Do not roll back app code for this symptom unless a separate deterministic failure is identified.
+
 ## 8. Escalation data collection
 
 When escalating an incident, collect:
