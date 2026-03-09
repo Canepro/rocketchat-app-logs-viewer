@@ -118,12 +118,13 @@ describe('LogsConfigEndpoint', () => {
             ok: true,
             config: {
                 workspacePermissionCode: 'view-logs',
+                warnings: ['workspace_permission_code is deprecated and ignored. Logs Viewer always enforces view-logs.'],
                 readiness: {
-                    ready: false,
+                    ready: true,
                 },
             },
         });
         const issues = (response.content as any)?.config?.readiness?.issues || [];
-        expect(issues).toContain('workspace_permission_code is deprecated and ignored. Logs Viewer always enforces view-logs.');
+        expect(issues).toEqual([]);
     });
 });

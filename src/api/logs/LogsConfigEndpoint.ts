@@ -61,6 +61,7 @@ export class LogsConfigEndpoint extends ApiEndpoint {
 
         const sourceMode = this.parseLogsSourceMode(logsSourceModeRaw);
         const readinessIssues: Array<string> = [];
+        const warnings: Array<string> = [];
         if (sourceMode === 'loki') {
             const baseUrl = typeof lokiBaseUrl === 'string' ? lokiBaseUrl.trim() : '';
             const selector = typeof requiredLabelSelector === 'string' ? requiredLabelSelector.trim() : '';
@@ -72,7 +73,7 @@ export class LogsConfigEndpoint extends ApiEndpoint {
             }
         }
         if (typeof workspacePermissionCodeRaw === 'string' && workspacePermissionCodeRaw.trim() && workspacePermissionCodeRaw.trim() !== WORKSPACE_PERMISSIONS.VIEW_LOGS) {
-            readinessIssues.push(`workspace_permission_code is deprecated and ignored. Logs Viewer always enforces ${WORKSPACE_PERMISSIONS.VIEW_LOGS}.`);
+            warnings.push(`workspace_permission_code is deprecated and ignored. Logs Viewer always enforces ${WORKSPACE_PERMISSIONS.VIEW_LOGS}.`);
         }
 
         return this.success({
@@ -90,6 +91,7 @@ export class LogsConfigEndpoint extends ApiEndpoint {
                 workspacePermissionCode: parseWorkspacePermissionCode(workspacePermissionCodeRaw),
                 workspacePermissionMode: parseWorkspacePermissionMode(workspacePermissionModeRaw),
                 accessMode: decision.mode,
+                warnings,
                 readiness: {
                     ready: readinessIssues.length === 0,
                     issues: readinessIssues,

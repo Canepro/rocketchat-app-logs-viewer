@@ -90,6 +90,7 @@ Response `200`:
     "workspacePermissionCode": "view-logs",
     "workspacePermissionMode": "strict",
     "accessMode": "permission",
+    "warnings": [],
     "readiness": {
       "ready": true,
       "issues": []
