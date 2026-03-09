@@ -23,6 +23,10 @@ export const SETTINGS = {
     EXTERNAL_COMPONENT_URL: 'external_component_url',
 } as const;
 
+export const WORKSPACE_PERMISSIONS = {
+    VIEW_LOGS: 'view-logs',
+} as const;
+
 export const EXTERNAL_COMPONENT = {
     NAME: 'logs-viewer',
     DESCRIPTION: 'Rocket.Chat Logs Viewer external component',

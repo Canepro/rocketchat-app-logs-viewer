@@ -15,11 +15,11 @@ If `external_component_url` is left as `http://localhost:5173`, only the machine
 
 Recommended default for most users:
 
-- `external_component_url=https://<your-hosted-logs-viewer-url>` (external/static hosting)
+- `external_component_url=https://<rocketchat-host>/logs-viewer/` (same-origin path mode)
 
 Optional advanced mode:
 
-- `external_component_url=https://<rocketchat-host>/logs-viewer/` (same-origin path mode)
+- `external_component_url=https://<your-hosted-logs-viewer-url>` (external/static hosting with explicit browser-auth strategy)
 
 ## 2. Prerequisites
 
@@ -113,7 +113,7 @@ required_label_selector={job="rocketchat"}
 allowed_roles=admin,log-viewer
 workspace_permission_mode=strict
 workspace_permission_code=view-logs
-external_component_url=https://<your-hosted-logs-viewer-url>
+external_component_url=https://<rocketchat-host>/logs-viewer/
 ```
 
 ## 5.2 Minimum settings for `app_logs` mode
@@ -123,16 +123,17 @@ logs_source_mode=app_logs
 allowed_roles=admin,log-viewer
 workspace_permission_mode=strict
 workspace_permission_code=view-logs
-external_component_url=https://<your-hosted-logs-viewer-url>
+external_component_url=https://<rocketchat-host>/logs-viewer/
 ```
 
 Notes:
 
 - `loki_base_url` should be host/base only. Do not append `/loki/api/v1/query_range`.
 - Keep `workspace_permission_mode=strict` for production.
+- `workspace_permission_code` is retained for compatibility, but Logs Viewer always enforces `view-logs`.
 - `required_label_selector` must match real labels in your Loki data.
 - `required_label_selector` is ignored in `app_logs` mode.
-- If same-origin setup is not already in place, use an external hosted URL for `external_component_url`.
+- External hosted URLs require an explicit browser-auth strategy (token mode or cross-site cookie+CORS support).
 
 ## 6. Assign permission and role access
 

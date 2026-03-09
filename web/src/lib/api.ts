@@ -19,6 +19,7 @@ export type LogsConfig = {
   rateLimitQpm?: number;
   levelParserMode?: string;
   externalComponentUrl?: string;
+  warnings?: Array<string>;
   readiness?: {
     ready: boolean;
     issues: Array<string>;

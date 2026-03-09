@@ -23,7 +23,7 @@ type SlashCardSampleStoreRecord = {
 };
 
 const SNAPSHOT_ASSOC_PREFIX = 'slash-card-samples:user:';
-const SNAPSHOT_RETENTION_MS = 24 * 60 * 60 * 1000;
+const SNAPSHOT_RETENTION_MS = 15 * 60 * 1000;
 const SNAPSHOT_MAX_ENTRIES = 8;
 
 export type CreateSlashCardSampleSnapshotInput = {

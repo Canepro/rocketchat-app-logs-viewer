@@ -30,7 +30,7 @@ This app complements Loki/Grafana; it does not replace them.
   - External Component URL
 - Your user has an allowed role from app setting `allowed_roles`
 - For `/logs` command visibility, user should have Rocket.Chat permission `view-logs`
-- If `workspace_permission_mode` is enabled (`fallback` or `strict`), user must match `workspace_permission_code` (default `view-logs`)
+- If `workspace_permission_mode` is enabled (`fallback` or `strict`), user must also have Rocket.Chat permission `view-logs`
 
 ## 2.2 First-time user quickstart
 
@@ -49,7 +49,7 @@ If this is your first use in a workspace:
 
 ## 2.1 RBAC mode recommendation
 
-App default is `workspace_permission_mode=strict` with `workspace_permission_code=view-logs`.
+App default is `workspace_permission_mode=strict`. Logs Viewer always enforces Rocket.Chat permission `view-logs`; `workspace_permission_code` remains as a deprecated compatibility setting.
 
 | Profile | `workspace_permission_mode` | Use case |
 |---------|-----------------------------|----------|

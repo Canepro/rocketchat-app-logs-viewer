@@ -38,7 +38,12 @@ Compatibility note:
 - All endpoints require authenticated Rocket.Chat user context.
 - Authorization gate:
   - role allowlist (`allowed_roles`), and
-  - workspace RBAC permission check mode (`workspace_permission_mode`) with code (`workspace_permission_code`).
+  - workspace RBAC permission check mode (`workspace_permission_mode`) for the fixed Rocket.Chat permission `view-logs`.
+
+Compatibility note:
+
+- `workspace_permission_code` is retained as a legacy setting but ignored at runtime.
+- Logs Viewer always enforces the Rocket.Chat permission `view-logs` so slash command visibility and API authorization stay aligned.
 
 Permission mode behavior:
 
@@ -85,6 +90,7 @@ Response `200`:
     "workspacePermissionCode": "view-logs",
     "workspacePermissionMode": "strict",
     "accessMode": "permission",
+    "warnings": [],
     "readiness": {
       "ready": true,
       "issues": []

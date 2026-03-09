@@ -13,7 +13,7 @@ type ShareElsewhereRequestRecord = {
 };
 
 const REQUEST_ASSOC_PREFIX = 'slash-card-share-elsewhere:user:';
-const REQUEST_RETENTION_MS = 30 * 60 * 1000;
+const REQUEST_RETENTION_MS = 15 * 60 * 1000;
 const REQUEST_MAX_ENTRIES = 10;
 
 export const createShareElsewhereRequest = async (

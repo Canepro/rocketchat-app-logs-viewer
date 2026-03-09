@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { authorizeRequestUser, parseWorkspacePermissionMode } from '../src/security/accessControl';
+import { authorizeRequestUser, parseWorkspacePermissionCode, parseWorkspacePermissionMode } from '../src/security/accessControl';
 
 const buildRead = (siteUrl?: string): any => ({
     getEnvironmentReader: () => ({
@@ -181,5 +181,13 @@ describe('parseWorkspacePermissionMode', () => {
         expect(parseWorkspacePermissionMode('off')).toBe('off');
         expect(parseWorkspacePermissionMode('fallback')).toBe('fallback');
         expect(parseWorkspacePermissionMode('strict')).toBe('strict');
+    });
+});
+
+describe('parseWorkspacePermissionCode', () => {
+    it('always normalizes to the fixed view-logs permission', () => {
+        expect(parseWorkspacePermissionCode(undefined)).toBe('view-logs');
+        expect(parseWorkspacePermissionCode('')).toBe('view-logs');
+        expect(parseWorkspacePermissionCode('custom-permission')).toBe('view-logs');
     });
 });

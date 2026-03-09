@@ -1,6 +1,7 @@
 import { IHttp, IHttpResponse, IRead } from '@rocket.chat/apps-engine/definition/accessors';
 import { IApiRequest } from '@rocket.chat/apps-engine/definition/api';
 
+import { WORKSPACE_PERMISSIONS } from '../constants';
 import { hasAnyAllowedRole } from './querySecurity';
 
 export type WorkspacePermissionMode = 'off' | 'fallback' | 'strict';
@@ -31,12 +32,10 @@ export const parseWorkspacePermissionMode = (rawValue: unknown): WorkspacePermis
 };
 
 export const parseWorkspacePermissionCode = (rawValue: unknown): string => {
-    if (typeof rawValue !== 'string') {
-        return 'view-logs';
-    }
-
-    const normalized = rawValue.trim();
-    return normalized || 'view-logs';
+    void rawValue;
+    // Slash commands can only register a static permission string, so the app enforces
+    // a single workspace permission end-to-end to keep command, actions, and API checks aligned.
+    return WORKSPACE_PERMISSIONS.VIEW_LOGS;
 };
 
 export const authorizeRequestUser = async (args: {

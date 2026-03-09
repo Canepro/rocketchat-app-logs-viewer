@@ -100,4 +100,31 @@ describe('LogsConfigEndpoint', () => {
         expect(issues).toContain('Loki base URL is not configured.');
         expect(issues.some((item: string) => item.includes('Required label selector is invalid'))).toBe(true);
     });
+
+    it('reports the fixed workspace permission code even when legacy setting is customized', async () => {
+        const response = await endpoint.get(
+            buildRequest(),
+            {} as any,
+            buildRead({
+                [SETTINGS.WORKSPACE_PERMISSION_CODE]: 'custom-permission',
+            }),
+            {} as any,
+            {} as any,
+            {} as any,
+        );
+
+        expect(response.status).toBe(HttpStatusCode.OK);
+        expect(response.content).toMatchObject({
+            ok: true,
+            config: {
+                workspacePermissionCode: 'view-logs',
+                warnings: ['workspace_permission_code is deprecated and ignored. Logs Viewer always enforces view-logs.'],
+                readiness: {
+                    ready: true,
+                },
+            },
+        });
+        const issues = (response.content as any)?.config?.readiness?.issues || [];
+        expect(issues).toEqual([]);
+    });
 });

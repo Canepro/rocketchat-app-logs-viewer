@@ -770,7 +770,7 @@ describe('slashCardActionHandler', () => {
         expect((notifications[0] as any).text).toContain('Sample details are no longer available');
     });
 
-    it('uses inline fallback sample when snapshot id is stale', async () => {
+    it('fails closed when stale snapshot-backed payload still carries inline fallback sample', async () => {
         const notifications: Array<any> = [];
         const modify: any = {
             getCreator: () => ({
@@ -810,9 +810,8 @@ describe('slashCardActionHandler', () => {
 
         expect(handled).toBe(true);
         expect(notifications.length).toBe(1);
-        expect((notifications[0] as any).text).toContain('Copy-ready sample (private):');
-        expect((notifications[0] as any).text).toContain('Fallback line from inline payload');
-        expect((notifications[0] as any).text).not.toContain('Sample details are no longer available');
+        expect((notifications[0] as any).text).toContain('Sample details are no longer available');
+        expect((notifications[0] as any).text).not.toContain('Fallback line from inline payload');
     });
 
     it('treats expired snapshot as unavailable and asks user to rerun /logs', async () => {

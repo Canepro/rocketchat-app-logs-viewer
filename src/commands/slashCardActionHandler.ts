@@ -832,7 +832,8 @@ const resolveActionPayloadForActor = async (
     try {
         const snapshot = await readSlashCardSampleSnapshot(read, actorId, payload.snapshotId);
         if (!snapshot) {
-            return payload.sampleOutput.length > 0 ? payload : undefined;
+            // Snapshot-backed cards intentionally fail closed once the server-side copy expires.
+            return undefined;
         }
 
         return {
@@ -848,7 +849,7 @@ const resolveActionPayloadForActor = async (
             sampleTotalCount: snapshot.sampleTotalCount,
         };
     } catch {
-        return payload.sampleOutput.length > 0 ? payload : undefined;
+        return undefined;
     }
 };
 

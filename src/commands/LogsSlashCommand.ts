@@ -313,7 +313,7 @@ export class LogsSlashCommand implements ISlashCommand {
             filterSummary,
             preset,
             sampleTotalCount: triageSummary.sampleLineCount ?? sampleOutput.length,
-            // Keep a tiny inline fallback so old cards still have minimal evidence if snapshot lookup fails.
+            // Fallback sample is only used when snapshot persistence is unavailable.
             sampleOutput: inlineFallbackSample,
         };
 
@@ -337,6 +337,7 @@ export class LogsSlashCommand implements ISlashCommand {
                 });
                 if (snapshotId) {
                     payload.snapshotId = snapshotId;
+                    payload.sampleOutput = [];
                     return payload;
                 }
             } catch {
