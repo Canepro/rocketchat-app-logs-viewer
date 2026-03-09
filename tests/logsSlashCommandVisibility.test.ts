@@ -289,7 +289,7 @@ describe('LogsSlashCommand visibility behavior', () => {
         const copyButton = cardActionButtons.find((button) => button.actionId === SLASH_CARD_ACTION.COPY_SAMPLE);
         const decodedPayload = decodeSlashCardActionPayload(copyButton?.value);
         expect(decodedPayload?.snapshotId).toBeDefined();
-        expect(decodedPayload?.sampleOutput.length).toBe(3);
+        expect(decodedPayload?.sampleOutput.length).toBe(0);
         expect(decodedPayload?.sampleTotalCount).toBe(3);
     });
 

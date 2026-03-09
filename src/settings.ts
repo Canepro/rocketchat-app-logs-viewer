@@ -64,8 +64,8 @@ export const settings: Array<ISetting> = [
         packageValue: 'view-logs',
         required: true,
         public: false,
-        i18nLabel: 'Workspace RBAC permission',
-        i18nDescription: 'Rocket.Chat permission id to check when RBAC permission mode is enabled (for example view-logs).',
+        i18nLabel: 'Workspace RBAC permission (fixed)',
+        i18nDescription: 'Deprecated compatibility setting. Logs Viewer always enforces the Rocket.Chat permission id view-logs.',
     },
     {
         id: SETTINGS.WORKSPACE_PERMISSION_MODE,

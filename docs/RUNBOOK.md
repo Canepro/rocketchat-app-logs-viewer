@@ -74,7 +74,7 @@ Set required settings immediately after deploy:
 5. Authorization controls:
    - `allowed_roles`
    - `workspace_permission_mode`
-   - `workspace_permission_code`
+   - `workspace_permission_code` (deprecated compatibility setting; always enforced as `view-logs`)
 6. Guardrails:
    - `max_time_window_hours`
    - `max_lines_per_query`
@@ -94,7 +94,7 @@ Recommended minimum values for first production boot:
 logs_source_mode=loki
 loki_base_url=https://<loki-host-or-observability-gateway>
 required_label_selector={job="rocketchat"}
-external_component_url=https://<your-hosted-logs-viewer-url>
+external_component_url=https://<rocketchat-host>/logs-viewer/
 allowed_roles=admin,log-viewer
 workspace_permission_mode=strict
 workspace_permission_code=view-logs
@@ -104,7 +104,7 @@ If running without Loki, set:
 
 ```text
 logs_source_mode=app_logs
-external_component_url=https://<your-hosted-logs-viewer-url>
+external_component_url=https://<rocketchat-host>/logs-viewer/
 allowed_roles=admin,log-viewer
 workspace_permission_mode=strict
 workspace_permission_code=view-logs
@@ -388,7 +388,7 @@ Checks:
 
 Notes:
 
-- Current web client attempts same-origin storage-based auth first, and can fall back between private/public app base paths for compatibility.
+- Current web client expects same-origin auth by default and can fall back between private/public app base paths for compatibility.
 - `401` means authentication context was not accepted; `403` means authenticated but denied by role/workspace-permission policy.
 
 ## 7.11 GitHub Actions checkout fails with `HTTP 500`

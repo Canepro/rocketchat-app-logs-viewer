@@ -77,8 +77,8 @@ Sanitized screenshots for public showcase live under `evidence/screenshots/publi
 - Rocket.Chat workspace where you can install private apps
 - For Loki mode: Loki query endpoint reachable from Rocket.Chat runtime
 - A hosted web URL for the external component (do not use `http://localhost:5173` for shared environments)
-- Recommended default for most users: host the web UI on a simple static URL and set `external_component_url` to that URL.
-- Optional advanced mode: serve the UI same-origin at `https://<rocketchat-host>/logs-viewer/`.
+- Recommended default for most users: serve the web UI same-origin at `https://<rocketchat-host>/logs-viewer/`.
+- External/static hosting is an advanced mode and needs an explicit browser-auth strategy (for example token mode or cross-site cookie+CORS support).
 
 ### Local build and checks
 
@@ -125,7 +125,7 @@ Minimum required values after install:
 - `logs_source_mode`
 - `allowed_roles`
 - `workspace_permission_mode`
-- `workspace_permission_code`
+- `workspace_permission_code` (deprecated compatibility setting; Logs Viewer always enforces `view-logs`)
 - `external_component_url` (must be reachable by end-user browsers)
 
 Loki mode additionally requires:
@@ -143,7 +143,7 @@ Starter production-safe examples:
 - `allowed_roles=admin,log-viewer`
 - `workspace_permission_mode=strict`
 - `workspace_permission_code=view-logs`
-- `external_component_url=https://<your-hosted-logs-viewer-url>`
+- `external_component_url=https://<rocketchat-host>/logs-viewer/`
 
 First-time operator path (recommended): [`docs/DEPLOYMENT_QUICKSTART.md`](docs/DEPLOYMENT_QUICKSTART.md)
 Same-origin (optional advanced) reference: [`docs/SAME_ORIGIN_SETUP.md`](docs/SAME_ORIGIN_SETUP.md)

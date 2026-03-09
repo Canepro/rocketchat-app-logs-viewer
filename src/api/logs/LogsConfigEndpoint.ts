@@ -1,7 +1,7 @@
 import { HttpStatusCode, IHttp, IModify, IPersistence, IRead } from '@rocket.chat/apps-engine/definition/accessors';
 import { ApiEndpoint, IApiEndpointInfo, IApiRequest, IApiResponse } from '@rocket.chat/apps-engine/definition/api';
 
-import { SETTINGS } from '../../constants';
+import { SETTINGS, WORKSPACE_PERMISSIONS } from '../../constants';
 import { authorizeRequestUser, parseWorkspacePermissionCode, parseWorkspacePermissionMode } from '../../security/accessControl';
 import { parseAllowedRoles } from '../../security/querySecurity';
 
@@ -70,6 +70,9 @@ export class LogsConfigEndpoint extends ApiEndpoint {
             if (!this.isValidSelector(selector)) {
                 readinessIssues.push('Required label selector is invalid. Use a plain selector like {job="rocketchat"} with no pipelines.');
             }
+        }
+        if (typeof workspacePermissionCodeRaw === 'string' && workspacePermissionCodeRaw.trim() && workspacePermissionCodeRaw.trim() !== WORKSPACE_PERMISSIONS.VIEW_LOGS) {
+            readinessIssues.push(`workspace_permission_code is deprecated and ignored. Logs Viewer always enforces ${WORKSPACE_PERMISSIONS.VIEW_LOGS}.`);
         }
 
         return this.success({
