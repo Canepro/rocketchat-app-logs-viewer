@@ -301,7 +301,9 @@ export class LogsQueryEndpoint extends ApiEndpoint {
             });
         }
 
-        const filteredByLevel = queryResult.entries;
+        const filteredByLevel = normalized.level
+            ? queryResult.entries.filter((entry) => entry.level === normalized.level)
+            : queryResult.entries;
         const sorted = filteredByLevel.sort((a, b) => this.compareNsDesc(a.rawTimestampNs, b.rawTimestampNs));
         const truncated = sorted.length > normalized.limit;
 

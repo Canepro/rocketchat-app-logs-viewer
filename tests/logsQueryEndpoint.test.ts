@@ -356,6 +356,72 @@ describe('LogsQueryEndpoint negative paths', () => {
         });
     });
 
+    it('reapplies exact level filtering after app_logs query results are flattened', async () => {
+        const { read, persistence } = buildRead({
+            settings: {
+                [SETTINGS.LOGS_SOURCE_MODE]: 'app_logs',
+            },
+        });
+        const http = {
+            get: async () => ({
+                statusCode: 200,
+                data: {
+                    success: true,
+                    logs: [
+                        {
+                            method: 'app:onEnable',
+                            entries: [
+                                {
+                                    timestamp: '2026-02-25T19:00:02.000Z',
+                                    severity: 'warn',
+                                    args: [{ msg: 'warning entry' }],
+                                },
+                                {
+                                    timestamp: '2026-02-25T19:00:01.000Z',
+                                    severity: 'error',
+                                    args: [{ msg: 'error entry' }],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            }),
+        };
+
+        const response = await endpoint.post(
+            buildRequest({
+                headers: {
+                    host: 'rocketchat.example.com',
+                    'x-forwarded-proto': 'https',
+                    'x-user-id': 'u-admin',
+                    'x-auth-token': 'token-1',
+                },
+                content: { since: '15m', limit: 10, level: 'error' },
+            }),
+            {} as any,
+            read,
+            {} as any,
+            http as any,
+            persistence,
+        );
+
+        expect(response.status).toBe(HttpStatusCode.OK);
+        expect(response.content).toMatchObject({
+            ok: true,
+            source: 'app_logs',
+            meta: {
+                requestedLevel: 'error',
+                returned: 1,
+            },
+            entries: [
+                {
+                    level: 'error',
+                    message: expect.stringContaining('error entry'),
+                },
+            ],
+        });
+    });
+
     it('returns 403 in app_logs source mode when request auth headers are missing', async () => {
         const { read, persistence } = buildRead({
             settings: {
@@ -469,6 +535,16 @@ describe('LogsQueryEndpoint negative paths', () => {
                 returned: 2,
                 requestedLevel: 'error',
             },
+            entries: [
+                {
+                    level: 'error',
+                    message: 'error',
+                },
+                {
+                    level: 'error',
+                    message: 'error',
+                },
+            ],
         });
         expect(String(lokiRequest.query)).toContain('|~ "(?i)\\\\b(error|err|fatal|panic|exception)\\\\b"');
         expect(String(lokiRequest.limit)).toBe('2');
