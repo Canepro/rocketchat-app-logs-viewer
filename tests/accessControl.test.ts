@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 
-import { authorizeRequestUser, parseWorkspacePermissionCode, parseWorkspacePermissionMode } from '../src/security/accessControl';
+import {
+    authorizeRequestUser,
+    extractAuthHeaders,
+    parseWorkspacePermissionCode,
+    parseWorkspacePermissionMode,
+} from '../src/security/accessControl';
 
 const buildRead = (siteUrl?: string): any => ({
     getEnvironmentReader: () => ({
@@ -189,5 +194,22 @@ describe('parseWorkspacePermissionCode', () => {
         expect(parseWorkspacePermissionCode(undefined)).toBe('view-logs');
         expect(parseWorkspacePermissionCode('')).toBe('view-logs');
         expect(parseWorkspacePermissionCode('custom-permission')).toBe('view-logs');
+    });
+});
+
+describe('extractAuthHeaders', () => {
+    it('falls back to cookie auth headers when x-user-id and x-auth-token are missing', () => {
+        const result = extractAuthHeaders({
+            cookie: 'rc_uid=u1; rc_token=t1',
+        } as any);
+
+        expect(result).toEqual({
+            userId: 'u1',
+            authToken: 't1',
+        });
+    });
+
+    it('returns undefined when cookie values are incomplete', () => {
+        expect(extractAuthHeaders({ cookie: 'rc_uid=u1' } as any)).toBeUndefined();
     });
 });

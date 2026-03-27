@@ -12,6 +12,7 @@ import {
     SlashCardActionPayload,
 } from './slashCardActions';
 import { createSlashCardSampleSnapshot } from './slashCardSampleStore';
+import { redactLogMessage } from '../security/redaction';
 
 type PresetName = 'incident' | 'webhook-errors' | 'auth-failures';
 
@@ -55,7 +56,7 @@ type ParsedCommandArgs = {
 };
 
 const ALLOWED_LEVELS = new Set<QueryLevel>(['error', 'warn', 'info', 'debug']);
-const QUICK_SAMPLE_OUTPUT_MAX_LINES = 80;
+const QUICK_SAMPLE_OUTPUT_MAX_LINES = 600;
 const QUICK_SAMPLE_OUTPUT_PREVIEW_LINES = 25;
 const QUICK_SAMPLE_OUTPUT_PREVIEW_CHAR_BUDGET = 1800;
 const QUICK_SAMPLE_OUTPUT_FALLBACK_LINES = 8;
@@ -106,6 +107,8 @@ export class LogsSlashCommand implements ISlashCommand {
             externalComponentUrlRaw,
             defaultTimeRangeRaw,
             maxLinesPerQueryRaw,
+            enableRedactionRaw,
+            redactionReplacementRaw,
             logsSourceModeRaw,
             lokiBaseUrlRaw,
             lokiUsernameRaw,
@@ -116,12 +119,18 @@ export class LogsSlashCommand implements ISlashCommand {
             settingsReader.getValueById(SETTINGS.EXTERNAL_COMPONENT_URL),
             settingsReader.getValueById(SETTINGS.DEFAULT_TIME_RANGE),
             settingsReader.getValueById(SETTINGS.MAX_LINES_PER_QUERY),
+            settingsReader.getValueById(SETTINGS.ENABLE_REDACTION),
+            settingsReader.getValueById(SETTINGS.REDACTION_REPLACEMENT),
             settingsReader.getValueById(SETTINGS.LOGS_SOURCE_MODE),
             settingsReader.getValueById(SETTINGS.LOKI_BASE_URL),
             settingsReader.getValueById(SETTINGS.LOKI_USERNAME),
             settingsReader.getValueById(SETTINGS.LOKI_TOKEN),
             settingsReader.getValueById(SETTINGS.REQUIRED_LABEL_SELECTOR),
         ]);
+        const redaction = {
+            enabled: this.readBooleanSetting(enableRedactionRaw, true),
+            replacement: this.readReplacementSetting(redactionReplacementRaw, '[REDACTED]'),
+        };
 
         const allowedRoles = parseAllowedRoles(allowedRolesRaw);
         if (!hasAnyAllowedRole(context.getSender().roles, allowedRoles)) {
@@ -150,6 +159,7 @@ export class LogsSlashCommand implements ISlashCommand {
         });
         const triageSummary = await this.buildQuickTriageSummary({
             http: _http,
+            redaction,
             logsSourceModeRaw,
             lokiBaseUrlRaw,
             lokiUsernameRaw,
@@ -465,6 +475,10 @@ export class LogsSlashCommand implements ISlashCommand {
 
     private async buildQuickTriageSummary(args: {
         http: IHttp;
+        redaction: {
+            enabled: boolean;
+            replacement: string;
+        };
         logsSourceModeRaw: unknown;
         lokiBaseUrlRaw: unknown;
         lokiUsernameRaw: unknown;
@@ -508,7 +522,7 @@ export class LogsSlashCommand implements ISlashCommand {
         }
 
         try {
-            const query = this.buildSummaryQuery(selector, args.parsed.search);
+            const query = this.buildSummaryQuery(selector, args.parsed.search, args.parsed.level);
             // Short timeout keeps slash command responsive and avoids blocking chat workflows.
             const response = await args.http.get(`${baseUrl}/loki/api/v1/query_range`, {
                 headers: {
@@ -538,12 +552,34 @@ export class LogsSlashCommand implements ISlashCommand {
             }
 
             const entries = this.extractSummaryEntries(payload?.data?.result, args.parsed.level);
-            const topLevels = this.computeTopLevels(entries);
-            const topSignals = this.computeTopSignals(entries);
+            const redactedEntries = entries.map((entry) => {
+                const redactedLine = redactLogMessage(
+                    `${entry.timestamp ? `${entry.timestamp} ` : ''}${entry.lineText}`,
+                    {
+                        enabled: args.redaction.enabled,
+                        replacement: args.redaction.replacement,
+                    },
+                );
+
+                return {
+                    ...entry,
+                    lineText: redactedLine.message,
+                    signal: redactLogMessage(entry.signal, {
+                        enabled: args.redaction.enabled,
+                        replacement: args.redaction.replacement,
+                    }).message,
+                    preview: redactLogMessage(entry.preview ?? '', {
+                        enabled: args.redaction.enabled,
+                        replacement: args.redaction.replacement,
+                    }).message,
+                };
+            });
+            const topLevels = this.computeTopLevels(redactedEntries);
+            const topSignals = this.computeTopSignals(redactedEntries);
             // Expose only a small evidence window in chat; deeper inspection stays in full UI.
-            const sampleOutput = entries.slice(0, QUICK_SAMPLE_OUTPUT_MAX_LINES).map((entry) => ({
+            const sampleOutput = redactedEntries.slice(0, QUICK_SAMPLE_OUTPUT_MAX_LINES).map((entry) => ({
                 level: entry.level,
-                text: `${entry.timestamp ? `${entry.timestamp} ` : ''}${entry.lineText}`,
+                text: entry.lineText,
             }));
 
             return {
@@ -622,6 +658,12 @@ export class LogsSlashCommand implements ISlashCommand {
             return undefined;
         }
 
+        if (token && !username) {
+            return {
+                Authorization: `Bearer ${token}`,
+            };
+        }
+
         const credentials = `${username}:${token}`;
         return {
             Authorization: `Basic ${Buffer.from(credentials, 'utf8').toString('base64')}`,
@@ -640,12 +682,57 @@ export class LogsSlashCommand implements ISlashCommand {
         return !inner.includes('|') && !inner.includes('\n') && !inner.includes('\r');
     }
 
-    private buildSummaryQuery(selector: string, search?: string): string {
-        if (!search || !search.trim()) {
-            return selector;
+    private buildSummaryQuery(selector: string, search?: string, requestedLevel?: QueryLevel): string {
+        let query = selector;
+        if (search && search.trim()) {
+            query = `${selector} |= "${this.escapeLogQlString(search.trim())}"`;
         }
 
-        return `${selector} |= "${this.escapeLogQlString(search.trim())}"`;
+        if (!requestedLevel) {
+            return query;
+        }
+
+        const levelPattern = this.buildSummaryLevelPattern(requestedLevel);
+        return `${query} |~ "(?i)${levelPattern}"`;
+    }
+
+    private buildSummaryLevelPattern(level: QueryLevel): string {
+        if (level === 'error') {
+            return '\\\\b(error|err|fatal|panic|exception)\\\\b';
+        }
+        if (level === 'warn') {
+            return '\\\\b(warn|warning)\\\\b';
+        }
+        if (level === 'info') {
+            return '\\\\b(info|information)\\\\b';
+        }
+        return '\\\\b(debug|trace|verbose)\\\\b';
+    }
+
+    private readBooleanSetting(value: unknown, fallback: boolean): boolean {
+        if (typeof value === 'string') {
+            const normalized = value.trim().toLowerCase();
+            if (normalized === 'true' || normalized === '1' || normalized === 'yes') {
+                return true;
+            }
+            if (normalized === 'false' || normalized === '0' || normalized === 'no') {
+                return false;
+            }
+        }
+
+        if (typeof value === 'boolean') {
+            return value;
+        }
+
+        return fallback;
+    }
+
+    private readReplacementSetting(value: unknown, fallback: string): string {
+        if (typeof value === 'string' && value.trim()) {
+            return value.trim();
+        }
+
+        return fallback;
     }
 
     private escapeLogQlString(value: string): string {

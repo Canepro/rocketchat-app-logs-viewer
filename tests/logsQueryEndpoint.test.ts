@@ -409,4 +409,69 @@ describe('LogsQueryEndpoint negative paths', () => {
             },
         });
     });
+
+    it('passes level filter to Loki query and applies requested limit as truncation boundary', async () => {
+        const { read, persistence } = buildRead();
+        let lokiRequest: { query?: unknown; limit?: unknown } = {};
+
+        const http = {
+            get: async (_url: string, options: { params?: Record<string, unknown> }) => {
+                lokiRequest = options?.params || {};
+                return {
+                    statusCode: 200,
+                    data: {
+                        status: 'success',
+                        data: {
+                            resultType: 'streams',
+                            result: [
+                                {
+                                    stream: {
+                                        level: 'debug',
+                                    },
+                                    values: [
+                                        ['1767225603000000000', 'debug'],
+                                        ['1767225602000000000', 'info'],
+                                    ],
+                                },
+                                {
+                                    stream: {
+                                        level: 'error',
+                                    },
+                                    values: [
+                                        ['1767225601000000000', 'error'],
+                                        ['1767225600000000', 'error'],
+                                    ],
+                                },
+                            ],
+                        },
+                    },
+                };
+            },
+        };
+
+        const response = await endpoint.post(
+            buildRequest({
+                content: { since: '15m', limit: 2, level: 'error' },
+            }),
+            {} as any,
+            read,
+            {} as any,
+            http as any,
+            persistence,
+        );
+
+        expect(response.status).toBe(HttpStatusCode.OK);
+        expect(response.content).toMatchObject({
+            ok: true,
+            source: 'loki',
+            meta: {
+                requestedLimit: 2,
+                returned: 2,
+                requestedLevel: 'error',
+            },
+        });
+        expect(String(lokiRequest.query)).toContain('|~ "(?i)\\\\b(error|err|fatal|panic|exception)\\\\b"');
+        expect(String(lokiRequest.limit)).toBe('2');
+        expect(response.content?.query).toBeUndefined();
+    });
 });
