@@ -111,6 +111,7 @@ const createRead = (
     actorRoles: Array<string> = ['admin'],
     options?: {
         actorId?: string;
+        settingsById?: Record<string, unknown>;
         userRoomIds?: Array<string>;
         roomsById?: Record<string, any>;
         threadRoomById?: Record<string, string>;
@@ -147,6 +148,8 @@ const createRead = (
                     allowed_roles: allowedRoles,
                     audit_retention_days: 7,
                     audit_max_entries: 2000,
+                    Message_MaxAllowedSize: 5000,
+                    ...options?.settingsById,
                 };
                 return values[id];
             },
@@ -214,6 +217,73 @@ describe('slashCardActionHandler', () => {
         expect((notifications[0] as any).text).toContain('Lines=2/2');
     });
 
+    it('returns substantially more than forty private sample lines from persisted snapshot data', async () => {
+        const notifications: Array<any> = [];
+        const freshSnapshotIso = new Date().toISOString();
+        const shortPayload: SlashCardActionPayload = {
+            ...payload,
+            snapshotId: 'snap_many_lines',
+            sampleTotalCount: 60,
+            sampleOutput: [],
+        };
+        const modify: any = {
+            getCreator: () => ({
+                startMessage: () => createMessageBuilder(),
+                finish: async () => undefined,
+            }),
+            getNotifier: () => ({
+                notifyUser: async (_user: unknown, message: unknown) => notifications.push(message),
+            }),
+        };
+
+        const handled = await handleSlashCardBlockAction(
+            'app-id',
+            {
+                appId: 'app-id',
+                actionId: SLASH_CARD_ACTION.COPY_SAMPLE,
+                value: encodeSlashCardActionPayload(shortPayload),
+                room,
+                user: { id: 'u1', roles: ['admin'] },
+                triggerId: 't1',
+                blockId: 'b1',
+                container: { id: 'c1', type: 'contextual_bar' } as any,
+            } as any,
+            createRead('admin', ['admin'], {
+                actorId: 'u1',
+                slashSnapshotStoreRecord: {
+                    updatedAt: freshSnapshotIso,
+                    entries: [
+                        {
+                            id: 'snap_many_lines',
+                            createdAt: freshSnapshotIso,
+                            roomId: 'room-1',
+                            roomName: 'Support_Stuff',
+                            threadId: 'thread-1',
+                            sourceMode: 'loki',
+                            windowLabel: 'last 15m',
+                            filterSummary: 'since=15m, limit=200',
+                            preset: 'none',
+                            sampleOutput: Array.from({ length: 60 }, (_, index) => ({
+                                level: 'error',
+                                text: `2026-02-25T10:00:${String(index).padStart(2, '0')}.000Z short-${index + 1}`,
+                            })),
+                            sampleTotalCount: 60,
+                        },
+                    ],
+                },
+            }),
+            modify,
+            {
+                updateByAssociation: async () => undefined,
+            } as any,
+        );
+
+        expect(handled).toBe(true);
+        expect(notifications.length).toBe(1);
+        expect((notifications[0] as any).text).toContain('Lines=60/60');
+        expect((notifications[0] as any).text).toContain('60 [error] 2026-02-25T10:00:59.000Z short-60');
+    });
+
     it('shares sample to room and writes share audit entry', async () => {
         const notifications: Array<any> = [];
         const finishes: Array<any> = [];
@@ -254,7 +324,7 @@ describe('slashCardActionHandler', () => {
         expect(finishes[0].threadId).toBe('thread-1');
         expect(finishes[0].text).toContain('*Logs sample shared from `/logs`*');
         expect(finishes[0].text).toContain('Render mode: full_line_priority');
-        expect(finishes[0].text).toContain('Lines: 2/2');
+        expect(finishes[0].text).toContain('Lines: 1-2/2');
         expect(finishes[0].text).toContain('01 [error] 2026-02-25T10:00:00.000Z Connection ended');
         expect(auditWrites.length).toBe(1);
         expect(notifications.length).toBe(1);
@@ -352,6 +422,126 @@ describe('slashCardActionHandler', () => {
         expect(finishes[0].text).toContain('*Logs sample shared from `/logs`*');
         expect(auditWrites.length).toBe(1);
         expect((notifications[0] as any).text).toContain('to room successfully');
+    });
+
+    it('pages large room shares into a single thread chain when message size is tight', async () => {
+        const notifications: Array<any> = [];
+        const finishes: Array<any> = [];
+        const pagedPayload: SlashCardActionPayload = {
+            ...payload,
+            threadId: undefined,
+            sampleTotalCount: 24,
+            sampleOutput: Array.from({ length: 24 }, (_, index) => ({
+                level: 'error',
+                text: `${'x'.repeat(70)} line-${index + 1}`,
+            })),
+        };
+        const modify: any = {
+            getCreator: () => ({
+                startMessage: () => createMessageBuilder(),
+                finish: async (builder: any) => {
+                    const message = builder.getMessage();
+                    finishes.push(message);
+                    return `msg-${finishes.length}`;
+                },
+            }),
+            getNotifier: () => ({
+                notifyUser: async (_user: unknown, message: unknown) => notifications.push(message),
+            }),
+        };
+
+        const handled = await handleSlashCardBlockAction(
+            'app-id',
+            {
+                appId: 'app-id',
+                actionId: SLASH_CARD_ACTION.SHARE_SAMPLE,
+                value: encodeSlashCardActionPayload(pagedPayload),
+                room,
+                user: { id: 'u1', roles: ['admin'] },
+                triggerId: 't1',
+                blockId: 'b1',
+                container: { id: 'c1', type: 'contextual_bar' } as any,
+            } as any,
+            createRead('admin', ['admin'], {
+                settingsById: {
+                    Message_MaxAllowedSize: 700,
+                },
+            }),
+            modify,
+            {
+                updateByAssociation: async () => undefined,
+            } as any,
+        );
+
+        expect(handled).toBe(true);
+        expect(finishes.length).toBeGreaterThan(1);
+        expect(finishes[0].threadId).toBeUndefined();
+        expect(finishes[1].threadId).toBe('msg-1');
+        expect(finishes[0].text).toContain('*Logs sample shared from `/logs`*');
+        expect(finishes[1].text).toContain('*Logs sample continuation from `/logs`*');
+        expect((notifications[0] as any).text).toContain('across');
+        expect((notifications[0] as any).text).toContain('to thread successfully');
+    });
+
+    it('treats later page publish failure as partial success instead of full failure', async () => {
+        const notifications: Array<any> = [];
+        const finishes: Array<any> = [];
+        const pagedPayload: SlashCardActionPayload = {
+            ...payload,
+            threadId: undefined,
+            sampleTotalCount: 24,
+            sampleOutput: Array.from({ length: 24 }, (_, index) => ({
+                level: 'error',
+                text: `${'y'.repeat(70)} line-${index + 1}`,
+            })),
+        };
+        const modify: any = {
+            getCreator: () => ({
+                startMessage: () => createMessageBuilder(),
+                finish: async (builder: any) => {
+                    const message = builder.getMessage();
+                    finishes.push(message);
+                    if (finishes.length > 1) {
+                        throw new Error('second page failed');
+                    }
+                    return 'msg-1';
+                },
+            }),
+            getNotifier: () => ({
+                notifyUser: async (_user: unknown, message: unknown) => notifications.push(message),
+            }),
+        };
+        const auditWrites: Array<any> = [];
+
+        const handled = await handleSlashCardBlockAction(
+            'app-id',
+            {
+                appId: 'app-id',
+                actionId: SLASH_CARD_ACTION.SHARE_SAMPLE,
+                value: encodeSlashCardActionPayload(pagedPayload),
+                room,
+                user: { id: 'u1', roles: ['admin'] },
+                triggerId: 't1',
+                blockId: 'b1',
+                container: { id: 'c1', type: 'contextual_bar' } as any,
+            } as any,
+            createRead('admin', ['admin'], {
+                settingsById: {
+                    Message_MaxAllowedSize: 700,
+                },
+            }),
+            modify,
+            {
+                updateByAssociation: async (...args: Array<unknown>) => auditWrites.push(args),
+            } as any,
+        );
+
+        expect(handled).toBe(true);
+        expect(finishes.length).toBe(2);
+        expect(auditWrites.length).toBe(1);
+        expect((notifications[0] as any).text).toContain('Some sampled lines were omitted because a later page could not be posted.');
+        expect((notifications[0] as any).text).toContain('Shared');
+        expect((notifications[0] as any).text).not.toContain('Share sample failed while posting to Rocket.Chat');
     });
 
     it('returns explicit private error when share publish fails entirely', async () => {

@@ -271,6 +271,7 @@ export class LogsQueryEndpoint extends ApiEndpoint {
                   start: normalized.start,
                   end: normalized.end,
                   limit: normalized.limit,
+                  level: normalized.level,
                   search: normalized.search,
                   timeoutMs: guardrails.queryTimeoutMs,
               });
@@ -300,14 +301,13 @@ export class LogsQueryEndpoint extends ApiEndpoint {
             });
         }
 
-        const flattened = queryResult.entries;
-        const filteredByLevel = normalized.level ? flattened.filter((entry) => entry.level === normalized.level) : flattened;
+        const filteredByLevel = queryResult.entries;
         const sorted = filteredByLevel.sort((a, b) => this.compareNsDesc(a.rawTimestampNs, b.rawTimestampNs));
-        const truncated = sorted.length > guardrails.maxLinesPerQuery;
+        const truncated = sorted.length > normalized.limit;
 
         let redactedLines = 0;
         let totalRedactions = 0;
-        const finalEntries = sorted.slice(0, guardrails.maxLinesPerQuery).map(({ rawTimestampNs, ...entry }) => {
+        const finalEntries = sorted.slice(0, normalized.limit).map(({ rawTimestampNs, ...entry }) => {
             const redacted = redactLogMessage(entry.message, {
                 enabled: redaction.enabled,
                 replacement: redaction.replacement,
@@ -377,9 +377,31 @@ export class LogsQueryEndpoint extends ApiEndpoint {
         });
     }
 
-    private buildLogQl(selector: string, search?: string): string {
+    private buildLogQl(selector: string, search?: string, level?: QueryLevel): string {
         const escapedSearch = search ? search.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ') : '';
-        return escapedSearch ? `${selector} |= "${escapedSearch}"` : selector;
+        const withSearch = escapedSearch ? `${selector} |= "${escapedSearch}"` : selector;
+        if (!level) {
+            return withSearch;
+        }
+
+        const pattern = this.buildLevelRegex(level);
+        return `${withSearch} |~ "(?i)${pattern}"`;
+    }
+
+    private buildLevelRegex(level: QueryLevel): string {
+        if (level === 'error') {
+            return '\\\\b(error|err|fatal|panic|exception)\\\\b';
+        }
+
+        if (level === 'warn') {
+            return '\\\\b(warn|warning)\\\\b';
+        }
+
+        if (level === 'info') {
+            return '\\\\b(info|information)\\\\b';
+        }
+
+        return '\\\\b(debug|trace|verbose)\\\\b';
     }
 
     private parseLogsSourceMode(rawValue: unknown): LogsSourceMode {
@@ -405,6 +427,7 @@ export class LogsQueryEndpoint extends ApiEndpoint {
             start: Date;
             end: Date;
             limit: number;
+            level?: QueryLevel;
             search?: string;
             timeoutMs: number;
         },
@@ -435,7 +458,7 @@ export class LogsQueryEndpoint extends ApiEndpoint {
             };
         }
 
-        const logQlQuery = this.buildLogQl(selector, args.search);
+        const logQlQuery = this.buildLogQl(selector, args.search, args.level);
         const lokiResponse = await this.queryLoki(http, {
             baseUrl,
             username: typeof args.lokiUsername === 'string' ? args.lokiUsername.trim() : '',

@@ -420,6 +420,63 @@ describe('LogsSlashCommand visibility behavior', () => {
         expect(latestEntry.sampleOutput[0].text).toContain(longTailMarker);
     });
 
+    it('redacts sensitive fields in quick triage sample output', async () => {
+        const command = new LogsSlashCommand('test-app-id');
+        const opens: Array<any> = [];
+
+        const modify: any = {
+            getCreator: () => ({
+                startMessage: () => createMessageBuilder(),
+                getBlockBuilder: () => createBlockBuilder(),
+                finish: async () => 'message-id',
+            }),
+            getNotifier: () => ({
+                notifyUser: async () => undefined,
+            }),
+            getUiController: () => ({
+                openSurfaceView: async (view: unknown, interaction: unknown, user: unknown) => {
+                    opens.push({ view, interaction, user });
+                },
+            }),
+        };
+
+        const context: any = {
+            getSender: () => ({ id: 'u1', username: 'vincent', roles: ['admin'] }),
+            getRoom: () => room,
+            getArguments: () => ['level=error'],
+            getThreadId: () => undefined,
+            getTriggerId: () => 'trigger-1',
+        };
+
+        await command.executor(
+            context,
+            createRead(),
+            modify,
+            createHttp({
+                data: {
+                    status: 'success',
+                    data: {
+                        result: [
+                            {
+                                stream: { level: 'error' },
+                                values: [[
+                                    '1767225600000000000',
+                                    'Authorization: Bearer abcdefghijklmnopqrstuv token=super_secret_token',
+                                ]],
+                            },
+                        ],
+                    },
+                },
+            }),
+            {} as any,
+        );
+
+        expect(opens.length).toBe(1);
+        const flattenedText = JSON.stringify((opens[0].view as any).blocks);
+        expect(flattenedText).toContain('[REDACTED]');
+        expect(flattenedText).not.toContain('super_secret_token');
+    });
+
     it('returns app_logs summary note when source mode is app_logs', async () => {
         const command = new LogsSlashCommand('test-app-id');
         const opens: Array<any> = [];

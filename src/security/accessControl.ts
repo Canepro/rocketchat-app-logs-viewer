@@ -123,8 +123,8 @@ export const extractAuthHeaders = (headers: { [key: string]: string } | undefine
     }
 
     const normalized = normalizeHeaderMap(headers);
-    const userId = normalized['x-user-id'];
-    const authToken = normalized['x-auth-token'];
+    const userId = normalized['x-user-id'] || parseCookieAuth(normalized.cookie, 'user');
+    const authToken = normalized['x-auth-token'] || parseCookieAuth(normalized.cookie, 'token');
     if (!userId || !authToken) {
         return undefined;
     }
@@ -274,4 +274,35 @@ const normalizeHeaderMap = (headers: { [key: string]: string }): { [key: string]
         normalized[key.toLowerCase()] = value;
     }
     return normalized;
+};
+
+const parseCookieAuth = (cookieHeader: string | undefined, kind: 'user' | 'token'): string | undefined => {
+    if (!cookieHeader) {
+        return undefined;
+    }
+
+    const candidates: Record<'user' | 'token', Array<string>> = {
+        user: ['rc_uid', 'rcuid', 'user-id', 'user_id'],
+        token: ['rc_token', 'rc_token_auth', 'rc-token', 'auth-token'],
+    };
+
+    const cookies = cookieHeader.split(';');
+    for (const rawCookie of cookies) {
+        const separatorIndex = rawCookie.indexOf('=');
+        if (separatorIndex === -1) {
+            continue;
+        }
+
+        const key = rawCookie.slice(0, separatorIndex).trim().toLowerCase();
+        const value = rawCookie.slice(separatorIndex + 1).trim().replace(/^['"]|['"]$/g, '');
+        if (!value) {
+            continue;
+        }
+
+        if (candidates[kind].includes(key)) {
+            return value;
+        }
+    }
+
+    return undefined;
 };
