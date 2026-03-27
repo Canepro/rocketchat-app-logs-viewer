@@ -769,15 +769,6 @@ const publishSharePayloadWithFallback = async (
     }
 
     const rendered = renderSharePages(payload, maxMessageChars);
-    if (rendered.pages.length === 0) {
-        return {
-            displayedCount: 0,
-            pageCount: 0,
-            totalCount: rendered.totalCount,
-            truncated: rendered.truncated,
-            partialPublish: false,
-        };
-    }
 
     if (!threadId) {
         try {
