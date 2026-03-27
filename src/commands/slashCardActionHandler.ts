@@ -900,6 +900,15 @@ const publishSharePages = async (
     let partialPublish = false;
 
     if (pages.length > 1) {
+        if (!continuationThreadId) {
+            return {
+                threadId: undefined,
+                pageCount,
+                displayedCount,
+                partialPublish: true,
+            };
+        }
+
         const continuation = await publishShareContinuationPages(modify, appUser, roomContext, continuationThreadId, firstPageId, pages.slice(1));
         pageCount += continuation.pageCount;
         displayedCount += continuation.displayedCount;

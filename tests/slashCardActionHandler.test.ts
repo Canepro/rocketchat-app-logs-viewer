@@ -544,6 +544,59 @@ describe('slashCardActionHandler', () => {
         expect((notifications[0] as any).text).not.toContain('Share sample failed while posting to Rocket.Chat');
     });
 
+    it('does not spill continuation pages into the room when root message id is unavailable', async () => {
+        const notifications: Array<any> = [];
+        const finishes: Array<any> = [];
+        const pagedPayload: SlashCardActionPayload = {
+            ...payload,
+            threadId: undefined,
+            sampleTotalCount: 24,
+            sampleOutput: Array.from({ length: 24 }, (_, index) => ({
+                level: 'error',
+                text: `${'z'.repeat(70)} line-${index + 1}`,
+            })),
+        };
+        const modify: any = {
+            getCreator: () => ({
+                startMessage: () => createMessageBuilder(),
+                finish: async (builder: any) => {
+                    finishes.push(builder.getMessage());
+                    return undefined;
+                },
+            }),
+            getNotifier: () => ({
+                notifyUser: async (_user: unknown, message: unknown) => notifications.push(message),
+            }),
+        };
+
+        const handled = await handleSlashCardBlockAction(
+            'app-id',
+            {
+                appId: 'app-id',
+                actionId: SLASH_CARD_ACTION.SHARE_SAMPLE,
+                value: encodeSlashCardActionPayload(pagedPayload),
+                room,
+                user: { id: 'u1', roles: ['admin'] },
+                triggerId: 't1',
+                blockId: 'b1',
+                container: { id: 'c1', type: 'contextual_bar' } as any,
+            } as any,
+            createRead('admin', ['admin'], {
+                settingsById: {
+                    Message_MaxAllowedSize: 700,
+                },
+            }),
+            modify,
+            {
+                updateByAssociation: async () => undefined,
+            } as any,
+        );
+
+        expect(handled).toBe(true);
+        expect(finishes.length).toBe(1);
+        expect((notifications[0] as any).text).toContain('Some sampled lines were omitted because a later page could not be posted.');
+    });
+
     it('returns explicit private error when share publish fails entirely', async () => {
         const notifications: Array<any> = [];
         const finishes: Array<any> = [];
