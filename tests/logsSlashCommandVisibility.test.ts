@@ -67,6 +67,13 @@ const createBlockBuilder = (): any => {
     };
 };
 
+const findSnapshotRecord = (writes: Array<any>): any =>
+    writes.find((args) => {
+        const association = args?.[0] as { id?: string; getID?: () => string } | undefined;
+        const key = typeof association?.getID === 'function' ? association.getID() : association?.id;
+        return typeof key === 'string' && key.includes('slash-card-samples:user:');
+    })?.[1];
+
 describe('LogsSlashCommand visibility behavior', () => {
     const appUser = {
         id: 'app-user',
@@ -96,6 +103,14 @@ describe('LogsSlashCommand visibility behavior', () => {
                         external_component_url: 'https://viewer.example.com',
                         default_time_range: '15m',
                         max_lines_per_query: 2000,
+                        max_time_window_hours: 24,
+                        query_timeout_ms: 30000,
+                        rate_limit_qpm: 60,
+                        audit_retention_days: 90,
+                        audit_max_entries: 5000,
+                        workspace_permission_mode: 'off',
+                        enable_redaction: true,
+                        redaction_replacement: '[REDACTED]',
                         logs_source_mode: 'loki',
                         loki_base_url: 'https://observability.example.com',
                         loki_username: '',
@@ -168,7 +183,9 @@ describe('LogsSlashCommand visibility behavior', () => {
             getTriggerId: () => 'trigger-1',
         };
 
-        await command.executor(context, createRead(), modify, createHttp(), {} as any);
+        await command.executor(context, createRead(), modify, createHttp(), {
+            updateByAssociation: async () => undefined,
+        } as any);
 
         expect(notifications.length).toBe(1);
         expect((notifications[0].message as any).text).toContain('Only you can see this `/logs` response.');
@@ -213,7 +230,9 @@ describe('LogsSlashCommand visibility behavior', () => {
             getTriggerId: () => 'trigger-1',
         };
 
-        await command.executor(context, createRead(), modify, createHttp(), {} as any);
+        await command.executor(context, createRead(), modify, createHttp(), {
+            updateByAssociation: async () => undefined,
+        } as any);
 
         expect(opens.length).toBe(1);
         expect((opens[0].view as any).type).toBe('contextualBar');
@@ -226,7 +245,8 @@ describe('LogsSlashCommand visibility behavior', () => {
         const decodedPayload = decodeSlashCardActionPayload(copyButton?.value);
         expect(decodedPayload?.roomId).toBe('room-1');
         expect(decodedPayload?.roomName).toBe('Support_Stuff');
-        expect(decodedPayload?.sampleOutput.length).toBe(3);
+        expect(decodedPayload?.snapshotId).toBeDefined();
+        expect(decodedPayload?.sampleOutput.length).toBe(0);
 
         const flattenedText = JSON.stringify((opens[0].view as any).blocks);
         expect(flattenedText).toContain('Only you can see this `/logs` response.');
@@ -283,7 +303,8 @@ describe('LogsSlashCommand visibility behavior', () => {
         );
 
         expect(opens.length).toBe(1);
-        expect(persistenceWrites.length).toBe(1);
+        const snapshotRecord = findSnapshotRecord(persistenceWrites);
+        expect(snapshotRecord).toBeDefined();
         const actionBlocks = ((opens[0].view as any).blocks as Array<any>).filter((block) => block.type === 'actions');
         const cardActionButtons = (actionBlocks[1]?.elements || []) as Array<any>;
         const copyButton = cardActionButtons.find((button) => button.actionId === SLASH_CARD_ACTION.COPY_SAMPLE);
@@ -345,7 +366,9 @@ describe('LogsSlashCommand visibility behavior', () => {
                     },
                 },
             }),
-            {} as any,
+            {
+                updateByAssociation: async () => undefined,
+            } as any,
         );
 
         expect(opens.length).toBe(1);
@@ -413,14 +436,76 @@ describe('LogsSlashCommand visibility behavior', () => {
         );
 
         expect(opens.length).toBe(1);
-        expect(persistenceWrites.length).toBe(1);
-        const snapshotRecord = persistenceWrites[0]?.[1] as any;
+        const snapshotRecord = findSnapshotRecord(persistenceWrites);
         const latestEntry = (snapshotRecord?.entries || [])[0];
         expect(typeof latestEntry?.sampleOutput?.[0]?.text).toBe('string');
         expect(latestEntry.sampleOutput[0].text).toContain(longTailMarker);
     });
 
-    it('redacts sensitive fields in quick triage sample output', async () => {
+    it('redacts quick triage samples before rendering or storing slash-card payloads', async () => {
+        const command = new LogsSlashCommand('test-app-id');
+        const opens: Array<any> = [];
+        const persistenceWrites: Array<any> = [];
+
+        const modify: any = {
+            getCreator: () => ({
+                startMessage: () => createMessageBuilder(),
+                getBlockBuilder: () => createBlockBuilder(),
+                finish: async () => 'message-id',
+            }),
+            getNotifier: () => ({
+                notifyUser: async () => undefined,
+            }),
+            getUiController: () => ({
+                openSurfaceView: async (view: unknown, interaction: unknown, user: unknown) => {
+                    opens.push({ view, interaction, user });
+                },
+            }),
+        };
+
+        const context: any = {
+            getSender: () => ({ id: 'u1', username: 'vincent', roles: ['admin'] }),
+            getRoom: () => room,
+            getArguments: () => ['since=15m'],
+            getThreadId: () => undefined,
+            getTriggerId: () => 'trigger-1',
+        };
+
+        await command.executor(
+            context,
+            createRead(),
+            modify,
+            createHttp({
+                data: {
+                    status: 'success',
+                    data: {
+                        result: [
+                            {
+                                stream: { level: 'error' },
+                                values: [['1767225600000000000', 'authorization: bearer super-secret-token']],
+                            },
+                        ],
+                    },
+                },
+            }),
+            {
+                updateByAssociation: async (...args: Array<unknown>) => {
+                    persistenceWrites.push(args);
+                },
+            } as any,
+        );
+
+        expect(opens.length).toBe(1);
+        const flattenedText = JSON.stringify((opens[0].view as any).blocks);
+        expect(flattenedText).toContain('[REDACTED]');
+        expect(flattenedText).not.toContain('super-secret-token');
+        const snapshotRecord = findSnapshotRecord(persistenceWrites);
+        const latestEntry = (snapshotRecord?.entries || [])[0];
+        expect(JSON.stringify(latestEntry)).toContain('[REDACTED]');
+        expect(JSON.stringify(latestEntry)).not.toContain('super-secret-token');
+    });
+
+    it('keeps slash-card copy/share buttons in strict mode and embeds permission proof', async () => {
         const command = new LogsSlashCommand('test-app-id');
         const opens: Array<any> = [];
 
@@ -443,38 +528,33 @@ describe('LogsSlashCommand visibility behavior', () => {
         const context: any = {
             getSender: () => ({ id: 'u1', username: 'vincent', roles: ['admin'] }),
             getRoom: () => room,
-            getArguments: () => ['level=error'],
+            getArguments: () => ['since=15m'],
             getThreadId: () => undefined,
             getTriggerId: () => 'trigger-1',
         };
 
         await command.executor(
             context,
-            createRead(),
+            createRead({ workspace_permission_mode: 'strict' }),
             modify,
-            createHttp({
-                data: {
-                    status: 'success',
-                    data: {
-                        result: [
-                            {
-                                stream: { level: 'error' },
-                                values: [[
-                                    '1767225600000000000',
-                                    'Authorization: Bearer abcdefghijklmnopqrstuv token=super_secret_token',
-                                ]],
-                            },
-                        ],
-                    },
-                },
-            }),
-            {} as any,
+            createHttp(),
+            {
+                updateByAssociation: async () => undefined,
+            } as any,
         );
 
         expect(opens.length).toBe(1);
-        const flattenedText = JSON.stringify((opens[0].view as any).blocks);
-        expect(flattenedText).toContain('[REDACTED]');
-        expect(flattenedText).not.toContain('super_secret_token');
+        const actionBlocks = ((opens[0].view as any).blocks as Array<any>).filter((block) => block.type === 'actions');
+        expect(actionBlocks.length).toBe(2);
+        const cardActionButtons = (actionBlocks[1]?.elements || []) as Array<any>;
+        expect(cardActionButtons.some((button) => button.actionId === SLASH_CARD_ACTION.COPY_SAMPLE)).toBe(true);
+        expect(cardActionButtons.some((button) => button.actionId === SLASH_CARD_ACTION.SHARE_SAMPLE)).toBe(true);
+        expect(cardActionButtons.some((button) => button.actionId === SLASH_CARD_ACTION.SHARE_ELSEWHERE)).toBe(true);
+        const copyButton = cardActionButtons.find((button) => button.actionId === SLASH_CARD_ACTION.COPY_SAMPLE);
+        const decodedPayload = decodeSlashCardActionPayload(copyButton?.value);
+        expect(decodedPayload?.authorization?.ownerUserId).toBe('u1');
+        expect(decodedPayload?.authorization?.permissionMode).toBe('strict');
+        expect(decodedPayload?.authorization?.signature).toBeTruthy();
     });
 
     it('returns app_logs summary note when source mode is app_logs', async () => {

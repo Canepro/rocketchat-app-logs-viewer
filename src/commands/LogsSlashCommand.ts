@@ -4,7 +4,11 @@ import { UIKitSurfaceType } from '@rocket.chat/apps-engine/definition/uikit';
 import { IUser } from '@rocket.chat/apps-engine/definition/users';
 
 import { COMMANDS, SETTINGS } from '../constants';
-import { hasAnyAllowedRole, parseAllowedRoles } from '../security/querySecurity';
+import { parseAndNormalizeQuery, QueryLevel as NormalizedQueryLevel } from '../api/logs/queryValidation';
+import { parseWorkspacePermissionMode } from '../security/accessControl';
+import { appendAuditEntry, consumeRateLimitToken, hasAnyAllowedRole, parseAllowedRoles } from '../security/querySecurity';
+import { redactLogMessage } from '../security/redaction';
+import { createSlashPermissionProof, SlashPermissionProof } from '../security/slashPermissionProof';
 import {
     encodeSlashCardActionPayload,
     QueryLevel,
@@ -12,7 +16,6 @@ import {
     SlashCardActionPayload,
 } from './slashCardActions';
 import { createSlashCardSampleSnapshot } from './slashCardSampleStore';
-import { redactLogMessage } from '../security/redaction';
 
 type PresetName = 'incident' | 'webhook-errors' | 'auth-failures';
 
@@ -40,6 +43,9 @@ type QuickTriageSummary = {
     topLevels: Array<{ level: QueryLevel | 'unknown'; count: number }>;
     topSignals: Array<{ text: string; count: number }>;
     note?: string;
+    auditOutcome?: 'allowed' | 'denied';
+    auditReason?: string;
+    auditScope?: Record<string, unknown>;
 };
 
 type ParsedCommandArgs = {
@@ -107,6 +113,12 @@ export class LogsSlashCommand implements ISlashCommand {
             externalComponentUrlRaw,
             defaultTimeRangeRaw,
             maxLinesPerQueryRaw,
+            maxTimeWindowHoursRaw,
+            queryTimeoutMsRaw,
+            rateLimitQpmRaw,
+            auditRetentionDaysRaw,
+            auditMaxEntriesRaw,
+            workspacePermissionModeRaw,
             enableRedactionRaw,
             redactionReplacementRaw,
             logsSourceModeRaw,
@@ -119,6 +131,12 @@ export class LogsSlashCommand implements ISlashCommand {
             settingsReader.getValueById(SETTINGS.EXTERNAL_COMPONENT_URL),
             settingsReader.getValueById(SETTINGS.DEFAULT_TIME_RANGE),
             settingsReader.getValueById(SETTINGS.MAX_LINES_PER_QUERY),
+            settingsReader.getValueById(SETTINGS.MAX_TIME_WINDOW_HOURS),
+            settingsReader.getValueById(SETTINGS.QUERY_TIMEOUT_MS),
+            settingsReader.getValueById(SETTINGS.RATE_LIMIT_QPM),
+            settingsReader.getValueById(SETTINGS.AUDIT_RETENTION_DAYS),
+            settingsReader.getValueById(SETTINGS.AUDIT_MAX_ENTRIES),
+            settingsReader.getValueById(SETTINGS.WORKSPACE_PERMISSION_MODE),
             settingsReader.getValueById(SETTINGS.ENABLE_REDACTION),
             settingsReader.getValueById(SETTINGS.REDACTION_REPLACEMENT),
             settingsReader.getValueById(SETTINGS.LOGS_SOURCE_MODE),
@@ -127,11 +145,6 @@ export class LogsSlashCommand implements ISlashCommand {
             settingsReader.getValueById(SETTINGS.LOKI_TOKEN),
             settingsReader.getValueById(SETTINGS.REQUIRED_LABEL_SELECTOR),
         ]);
-        const redaction = {
-            enabled: this.readBooleanSetting(enableRedactionRaw, true),
-            replacement: this.readReplacementSetting(redactionReplacementRaw, '[REDACTED]'),
-        };
-
         const allowedRoles = parseAllowedRoles(allowedRolesRaw);
         if (!hasAnyAllowedRole(context.getSender().roles, allowedRoles)) {
             await this.notifyPrivateOnly(context, modify, appUser, ['You do not have permission to use `/logs`.']);
@@ -147,6 +160,17 @@ export class LogsSlashCommand implements ISlashCommand {
         const parsed = this.parseArguments(context.getArguments());
         const defaultTimeRange = typeof defaultTimeRangeRaw === 'string' && defaultTimeRangeRaw.trim() ? defaultTimeRangeRaw.trim() : '15m';
         const maxLinesPerQuery = this.readNumber(maxLinesPerQueryRaw, 2000, 100, 5000);
+        const maxTimeWindowHours = this.readNumber(maxTimeWindowHoursRaw, 24, 1, 168);
+        const queryTimeoutMs = this.readNumber(queryTimeoutMsRaw, 30000, 1000, 120000);
+        const rateLimitQpm = this.readNumber(rateLimitQpmRaw, 60, 1, 1000);
+        const auditRetentionDays = this.readNumber(auditRetentionDaysRaw, 90, 1, 365);
+        const auditMaxEntries = this.readNumber(auditMaxEntriesRaw, 5000, 100, 20000);
+        const workspacePermissionMode = parseWorkspacePermissionMode(workspacePermissionModeRaw);
+        const sourceMode = this.parseLogsSourceMode(logsSourceModeRaw);
+        const redaction = {
+            enabled: this.readBoolean(enableRedactionRaw, true),
+            replacement: this.readReplacement(redactionReplacementRaw, '[REDACTED]'),
+        };
 
         if (parsed.limit && parsed.limit > maxLinesPerQuery) {
             parsed.warnings.push(`Limit ${parsed.limit} exceeds max ${maxLinesPerQuery}; clamped to max.`);
@@ -157,21 +181,64 @@ export class LogsSlashCommand implements ISlashCommand {
             defaultTimeRange,
             defaultLimit: Math.min(500, maxLinesPerQuery),
         });
-        const triageSummary = await this.buildQuickTriageSummary({
-            http: _http,
-            redaction,
-            logsSourceModeRaw,
-            lokiBaseUrlRaw,
-            lokiUsernameRaw,
-            lokiTokenRaw,
-            requiredLabelSelectorRaw,
-            parsed,
-            defaultTimeRange,
-            maxLinesPerQuery,
-        });
+        let triageSummary: QuickTriageSummary;
+        if (sourceMode === 'loki') {
+            const summaryLimit = this.getSummaryLimit(parsed, maxLinesPerQuery);
+            const rateLimit = await consumeRateLimitToken(read, persistence, context.getSender().id, rateLimitQpm);
+            if (!rateLimit.allowed) {
+                triageSummary = this.buildSkippedTriageSummary({
+                    sourceMode,
+                    parsed,
+                    defaultTimeRange,
+                    sampleLimit: summaryLimit,
+                    note: `Quick sample skipped because the logs query rate limit was exceeded. Retry in ${rateLimit.retryAfterSeconds || 1}s.`,
+                    auditReason: 'rate_limited',
+                    auditScope: {
+                        retryAfterSeconds: rateLimit.retryAfterSeconds || 1,
+                        rateLimitQpm,
+                    },
+                });
+            } else {
+                triageSummary = await this.buildQuickTriageSummary({
+                    http: _http,
+                    lokiBaseUrlRaw,
+                    lokiUsernameRaw,
+                    lokiTokenRaw,
+                    requiredLabelSelectorRaw,
+                    parsed,
+                    defaultTimeRange,
+                    maxLinesPerQuery,
+                    maxTimeWindowHours,
+                    queryTimeoutMs,
+                    redaction,
+                });
+            }
+
+            await this.writeQuickTriageAudit(read, persistence, context.getSender().id, triageSummary, {
+                auditRetentionDays,
+                auditMaxEntries,
+            });
+        } else {
+            triageSummary = this.buildSkippedTriageSummary({
+                sourceMode,
+                parsed,
+                defaultTimeRange,
+                sampleLimit: this.getSummaryLimit(parsed, maxLinesPerQuery),
+                note: 'Quick sample is unavailable in app_logs mode. Use Open Logs Viewer for full query.',
+            });
+        }
 
         const roomName = context.getRoom().displayName || context.getRoom().slugifiedName;
         const filterSummary = this.formatFilterSummary(parsed, defaultTimeRange, maxLinesPerQuery);
+        const permissionProof = sourceMode === 'loki'
+            ? await createSlashPermissionProof(read, persistence, {
+                  ownerUserId: context.getSender().id,
+                  permissionMode: workspacePermissionMode,
+              })
+            : undefined;
+        if (sourceMode === 'loki' && !permissionProof) {
+            parsed.warnings.push('Could not mint slash-action permission proof. Re-run `/logs` if copy/share actions fail.');
+        }
 
         const warningText = parsed.warnings.length > 0 ? `\nWarnings: ${parsed.warnings.join(' | ')}` : '';
         const triggerId = context.getTriggerId();
@@ -188,6 +255,7 @@ export class LogsSlashCommand implements ISlashCommand {
                     parsed.preset || 'none',
                     triageSummary,
                     parsed.warnings,
+                    permissionProof,
                 );
                 return;
             } catch {
@@ -218,6 +286,7 @@ export class LogsSlashCommand implements ISlashCommand {
         preset: string,
         triageSummary: QuickTriageSummary,
         warnings: Array<string>,
+        permissionProof?: SlashPermissionProof,
     ): Promise<void> {
         const triggerId = context.getTriggerId();
         if (!triggerId) {
@@ -233,8 +302,9 @@ export class LogsSlashCommand implements ISlashCommand {
             filterSummary,
             preset,
             triageSummary,
+            permissionProof,
         );
-        const encodedActionPayload = encodeSlashCardActionPayload(actionPayload);
+        const encodedActionPayload = actionPayload ? encodeSlashCardActionPayload(actionPayload) : undefined;
 
         blocks.addSectionBlock({
             text: blocks.newMarkdownTextObject('*Logs Viewer (Private)*\nOnly you can see this `/logs` response.'),
@@ -247,26 +317,28 @@ export class LogsSlashCommand implements ISlashCommand {
                 }),
             ],
         });
-        blocks.addActionsBlock({
-            elements: [
-                blocks.newButtonElement({
-                    actionId: SLASH_CARD_ACTION.COPY_SAMPLE,
-                    // This action returns a private copy-ready block; clipboard write is not possible server-side.
-                    text: blocks.newPlainTextObject('Show copy-ready sample'),
-                    value: encodedActionPayload,
-                }),
-                blocks.newButtonElement({
-                    actionId: SLASH_CARD_ACTION.SHARE_SAMPLE,
-                    text: blocks.newPlainTextObject('Share sample'),
-                    value: encodedActionPayload,
-                }),
-                blocks.newButtonElement({
-                    actionId: SLASH_CARD_ACTION.SHARE_ELSEWHERE,
-                    text: blocks.newPlainTextObject('Share elsewhere'),
-                    value: encodedActionPayload,
-                }),
-            ],
-        });
+        if (encodedActionPayload) {
+            blocks.addActionsBlock({
+                elements: [
+                    blocks.newButtonElement({
+                        actionId: SLASH_CARD_ACTION.COPY_SAMPLE,
+                        // This action returns a private copy-ready block; clipboard write is not possible server-side.
+                        text: blocks.newPlainTextObject('Show copy-ready sample'),
+                        value: encodedActionPayload,
+                    }),
+                    blocks.newButtonElement({
+                        actionId: SLASH_CARD_ACTION.SHARE_SAMPLE,
+                        text: blocks.newPlainTextObject('Share sample'),
+                        value: encodedActionPayload,
+                    }),
+                    blocks.newButtonElement({
+                        actionId: SLASH_CARD_ACTION.SHARE_ELSEWHERE,
+                        text: blocks.newPlainTextObject('Share elsewhere'),
+                        value: encodedActionPayload,
+                    }),
+                ],
+            });
+        }
         // Keep high-frequency triage operations in-chat before forcing full web viewer navigation.
         blocks.addContextBlock({
             elements: [
@@ -304,6 +376,7 @@ export class LogsSlashCommand implements ISlashCommand {
         filterSummary: string,
         preset: string,
         triageSummary: QuickTriageSummary,
+        permissionProof?: SlashPermissionProof,
     ): Promise<SlashCardActionPayload> {
         const sampleOutput = triageSummary.sampleOutput.slice(0, QUICK_SAMPLE_OUTPUT_MAX_LINES);
         // Keep action payload compact for button reliability; rich lines are loaded from persisted snapshot.
@@ -323,6 +396,7 @@ export class LogsSlashCommand implements ISlashCommand {
             filterSummary,
             preset,
             sampleTotalCount: triageSummary.sampleLineCount ?? sampleOutput.length,
+            authorization: permissionProof,
             // Fallback sample is only used when snapshot persistence is unavailable.
             sampleOutput: inlineFallbackSample,
         };
@@ -475,11 +549,6 @@ export class LogsSlashCommand implements ISlashCommand {
 
     private async buildQuickTriageSummary(args: {
         http: IHttp;
-        redaction: {
-            enabled: boolean;
-            replacement: string;
-        };
-        logsSourceModeRaw: unknown;
         lokiBaseUrlRaw: unknown;
         lokiUsernameRaw: unknown;
         lokiTokenRaw: unknown;
@@ -487,42 +556,51 @@ export class LogsSlashCommand implements ISlashCommand {
         parsed: ParsedCommandArgs;
         defaultTimeRange: string;
         maxLinesPerQuery: number;
+        maxTimeWindowHours: number;
+        queryTimeoutMs: number;
+        redaction: { enabled: boolean; replacement: string };
     }): Promise<QuickTriageSummary> {
-        const sourceMode = this.parseLogsSourceMode(args.logsSourceModeRaw);
-        // Keep slash-card sampling small and predictable; full retrieval lives in the web viewer.
-        const summaryLimit = Math.min(args.maxLinesPerQuery, Math.max(20, Math.min(args.parsed.limit || 200, 200)));
-        const range = this.resolveSummaryTimeRange(args.parsed, args.defaultTimeRange);
-
-        if (sourceMode === 'app_logs') {
-            // app_logs mode currently supports backend query flow, but not slash-card pre-sampling.
-            return {
-                sourceMode,
-                windowLabel: range.label,
+        const summaryLimit = this.getSummaryLimit(args.parsed, args.maxLinesPerQuery);
+        const normalized = parseAndNormalizeQuery({
+            requestQuery: {},
+            requestContent: this.toQueryPayload(args.parsed, summaryLimit),
+            defaultTimeRange: args.defaultTimeRange,
+            maxTimeWindowHours: args.maxTimeWindowHours,
+            maxLinesPerQuery: args.maxLinesPerQuery,
+        });
+        if ('error' in normalized) {
+            return this.buildSkippedTriageSummary({
+                sourceMode: 'loki',
+                parsed: args.parsed,
+                defaultTimeRange: args.defaultTimeRange,
                 sampleLimit: summaryLimit,
-                sampleLineCount: undefined,
-                sampleOutput: [],
-                topLevels: [],
-                topSignals: [],
-                note: 'Quick sample is unavailable in app_logs mode. Use Open Logs Viewer for full query.',
-            };
+                note: `Quick sample skipped because the requested filters are invalid: ${normalized.error}`,
+                auditReason: 'invalid_query',
+                auditScope: { details: normalized.details },
+            });
         }
+
+        const range = normalized.query;
 
         const baseUrl = typeof args.lokiBaseUrlRaw === 'string' ? args.lokiBaseUrlRaw.trim() : '';
         const selector = typeof args.requiredLabelSelectorRaw === 'string' ? args.requiredLabelSelectorRaw.trim() : '';
         if (!baseUrl || !this.isValidSelector(selector)) {
-            return {
-                sourceMode,
-                windowLabel: range.label,
+            return this.buildSkippedTriageSummary({
+                sourceMode: 'loki',
+                parsed: args.parsed,
+                defaultTimeRange: args.defaultTimeRange,
                 sampleLimit: summaryLimit,
-                sampleOutput: [],
-                topLevels: [],
-                topSignals: [],
                 note: 'Quick sample skipped due to Loki base URL or selector configuration.',
-            };
+                auditReason: 'loki_error',
+                auditScope: {
+                    sourceMode: 'loki',
+                    configReady: false,
+                },
+            });
         }
 
         try {
-            const query = this.buildSummaryQuery(selector, args.parsed.search, args.parsed.level);
+            const query = this.buildSummaryQuery(selector, range.search, range.level);
             // Short timeout keeps slash command responsive and avoids blocking chat workflows.
             const response = await args.http.get(`${baseUrl}/loki/api/v1/query_range`, {
                 headers: {
@@ -534,98 +612,157 @@ export class LogsSlashCommand implements ISlashCommand {
                     start: range.start.toISOString(),
                     end: range.end.toISOString(),
                     limit: String(summaryLimit),
+                    direction: 'backward',
                 },
-                timeout: 5000,
+                timeout: Math.min(args.queryTimeoutMs, 5000),
             });
 
             const payload = response.data as any;
             if (response.statusCode >= 400 || !payload || payload.status !== 'success') {
-                return {
-                    sourceMode,
-                    windowLabel: range.label,
+                return this.buildSkippedTriageSummary({
+                    sourceMode: 'loki',
+                    parsed: args.parsed,
+                    defaultTimeRange: args.defaultTimeRange,
                     sampleLimit: summaryLimit,
-                    sampleOutput: [],
-                    topLevels: [],
-                    topSignals: [],
                     note: `Quick sample failed (HTTP ${response.statusCode}).`,
-                };
+                    auditReason: 'loki_error',
+                    auditScope: {
+                        sourceMode: 'loki',
+                        statusCode: response.statusCode,
+                    },
+                });
             }
 
-            const entries = this.extractSummaryEntries(payload?.data?.result, args.parsed.level);
-            const redactedEntries = entries.map((entry) => {
-                const redactedLine = redactLogMessage(
-                    `${entry.timestamp ? `${entry.timestamp} ` : ''}${entry.lineText}`,
-                    {
-                        enabled: args.redaction.enabled,
-                        replacement: args.redaction.replacement,
-                    },
-                );
-
-                return {
-                    ...entry,
-                    lineText: redactedLine.message,
-                    signal: redactLogMessage(entry.signal, {
-                        enabled: args.redaction.enabled,
-                        replacement: args.redaction.replacement,
-                    }).message,
-                    preview: redactLogMessage(entry.preview ?? '', {
-                        enabled: args.redaction.enabled,
-                        replacement: args.redaction.replacement,
-                    }).message,
-                };
-            });
-            const topLevels = this.computeTopLevels(redactedEntries);
-            const topSignals = this.computeTopSignals(redactedEntries);
+            const extracted = this.extractSummaryEntries(payload?.data?.result, range.level, args.redaction);
+            const topLevels = this.computeTopLevels(extracted.entries);
+            const topSignals = this.computeTopSignals(extracted.entries);
             // Expose only a small evidence window in chat; deeper inspection stays in full UI.
-            const sampleOutput = redactedEntries.slice(0, QUICK_SAMPLE_OUTPUT_MAX_LINES).map((entry) => ({
+            const sampleOutput = extracted.entries.slice(0, QUICK_SAMPLE_OUTPUT_MAX_LINES).map((entry) => ({
                 level: entry.level,
-                text: entry.lineText,
+                text: `${entry.timestamp ? `${entry.timestamp} ` : ''}${entry.lineText}`,
             }));
 
             return {
-                sourceMode,
-                windowLabel: range.label,
+                sourceMode: 'loki',
+                windowLabel: this.formatSummaryWindowLabel(args.parsed, range.start, range.end, args.defaultTimeRange),
                 sampleLimit: summaryLimit,
-                sampleLineCount: entries.length,
+                sampleLineCount: extracted.entries.length,
                 sampleOutput,
                 topLevels,
                 topSignals,
-                note: entries.length === 0 ? 'No matching lines in sampled window.' : undefined,
+                note: extracted.entries.length === 0 ? 'No matching lines in sampled window.' : undefined,
+                auditOutcome: 'allowed',
+                auditScope: {
+                    start: range.start.toISOString(),
+                    end: range.end.toISOString(),
+                    level: range.level || null,
+                    searchProvided: Boolean(range.search),
+                    returned: extracted.entries.length,
+                    truncated: extracted.entries.length > QUICK_SAMPLE_OUTPUT_MAX_LINES,
+                    redactedLines: extracted.redactedLines,
+                    totalRedactions: extracted.totalRedactions,
+                    source: 'slash_command',
+                },
             };
         } catch {
-            return {
-                sourceMode,
-                windowLabel: range.label,
+            return this.buildSkippedTriageSummary({
+                sourceMode: 'loki',
+                parsed: args.parsed,
+                defaultTimeRange: args.defaultTimeRange,
                 sampleLimit: summaryLimit,
-                sampleOutput: [],
-                topLevels: [],
-                topSignals: [],
                 note: 'Quick sample unavailable (timeout or upstream connectivity issue).',
-            };
+                auditReason: 'loki_error',
+                auditScope: {
+                    sourceMode: 'loki',
+                    connectivityIssue: true,
+                },
+            });
         }
     }
 
-    private resolveSummaryTimeRange(parsed: ParsedCommandArgs, defaultTimeRange: string): { start: Date; end: Date; label: string } {
+    private getSummaryLimit(parsed: ParsedCommandArgs, maxLinesPerQuery: number): number {
+        return Math.min(maxLinesPerQuery, Math.max(20, Math.min(parsed.limit || 200, 200)));
+    }
+
+    private toQueryPayload(parsed: ParsedCommandArgs, limit: number): Record<string, unknown> {
+        const payload: Record<string, unknown> = { limit };
+        if (parsed.level) {
+            payload.level = parsed.level;
+        }
+        if (parsed.search) {
+            payload.search = parsed.search;
+        }
         if (parsed.start && parsed.end) {
-            const start = new Date(parsed.start);
-            const end = new Date(parsed.end);
-            if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && start < end) {
-                return {
-                    start,
-                    end,
-                    label: `${start.toISOString()} -> ${end.toISOString()}`,
-                };
-            }
+            payload.start = parsed.start;
+            payload.end = parsed.end;
+        } else if (parsed.since) {
+            payload.since = parsed.since;
         }
 
-        const relative = this.parseRelativeDurationMs(parsed.since || defaultTimeRange) || this.parseRelativeDurationMs('15m')!;
-        const end = new Date();
-        const start = new Date(end.getTime() - relative);
+        return payload;
+    }
+
+    private formatSummaryWindowLabel(parsed: ParsedCommandArgs, start: Date, end: Date, defaultTimeRange: string): string {
+        if (parsed.start && parsed.end) {
+            return `${start.toISOString()} -> ${end.toISOString()}`;
+        }
+
+        return `last ${parsed.since || defaultTimeRange}`;
+    }
+
+    private buildSkippedTriageSummary(args: {
+        sourceMode: 'loki' | 'app_logs';
+        parsed: ParsedCommandArgs;
+        defaultTimeRange: string;
+        sampleLimit: number;
+        note: string;
+        auditReason?: string;
+        auditScope?: Record<string, unknown>;
+    }): QuickTriageSummary {
         return {
-            start,
-            end,
-            label: `last ${parsed.since || defaultTimeRange}`,
+            sourceMode: args.sourceMode,
+            windowLabel: args.parsed.start && args.parsed.end
+                ? `${args.parsed.start} -> ${args.parsed.end}`
+                : `last ${args.parsed.since || args.defaultTimeRange}`,
+            sampleLimit: args.sampleLimit,
+            sampleOutput: [],
+            topLevels: [],
+            topSignals: [],
+            note: args.note,
+            auditOutcome: args.auditReason ? 'denied' : undefined,
+            auditReason: args.auditReason,
+            auditScope: args.auditScope,
         };
+    }
+
+    private async writeQuickTriageAudit(
+        read: IRead,
+        persistence: IPersistence,
+        userId: string,
+        summary: QuickTriageSummary,
+        options: { auditRetentionDays: number; auditMaxEntries: number },
+    ): Promise<void> {
+        if (!summary.auditOutcome) {
+            return;
+        }
+
+        try {
+            await appendAuditEntry(
+                read,
+                persistence,
+                {
+                    action: summary.auditOutcome === 'allowed' ? 'query' : 'query_denied',
+                    userId,
+                    outcome: summary.auditOutcome,
+                    reason: summary.auditReason,
+                    scope: summary.auditScope,
+                },
+                options.auditRetentionDays,
+                options.auditMaxEntries,
+            );
+        } catch {
+            // Quick triage must stay usable even if audit persistence fails.
+        }
     }
 
     private parseRelativeDurationMs(value: string): number | undefined {
@@ -658,16 +795,14 @@ export class LogsSlashCommand implements ISlashCommand {
             return undefined;
         }
 
-        if (token && !username) {
+        if (username && token) {
+            const credentials = `${username}:${token}`;
             return {
-                Authorization: `Bearer ${token}`,
+                Authorization: `Basic ${Buffer.from(credentials, 'utf8').toString('base64')}`,
             };
         }
 
-        const credentials = `${username}:${token}`;
-        return {
-            Authorization: `Basic ${Buffer.from(credentials, 'utf8').toString('base64')}`,
-        };
+        return token ? { Authorization: `Bearer ${token}` } : undefined;
     }
 
     private isValidSelector(selector: string): boolean {
@@ -709,42 +844,22 @@ export class LogsSlashCommand implements ISlashCommand {
         return '\\\\b(debug|trace|verbose)\\\\b';
     }
 
-    private readBooleanSetting(value: unknown, fallback: boolean): boolean {
-        if (typeof value === 'string') {
-            const normalized = value.trim().toLowerCase();
-            if (normalized === 'true' || normalized === '1' || normalized === 'yes') {
-                return true;
-            }
-            if (normalized === 'false' || normalized === '0' || normalized === 'no') {
-                return false;
-            }
-        }
-
-        if (typeof value === 'boolean') {
-            return value;
-        }
-
-        return fallback;
-    }
-
-    private readReplacementSetting(value: unknown, fallback: string): string {
-        if (typeof value === 'string' && value.trim()) {
-            return value.trim();
-        }
-
-        return fallback;
-    }
-
     private escapeLogQlString(value: string): string {
         return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     }
 
-    private extractSummaryEntries(result: unknown, requestedLevel?: QueryLevel): Array<SummaryEntry> {
+    private extractSummaryEntries(
+        result: unknown,
+        requestedLevel?: NormalizedQueryLevel,
+        redaction?: { enabled: boolean; replacement: string },
+    ): { entries: Array<SummaryEntry>; redactedLines: number; totalRedactions: number } {
         if (!Array.isArray(result)) {
-            return [];
+            return { entries: [], redactedLines: 0, totalRedactions: 0 };
         }
 
         const entries: Array<SummaryEntry> = [];
+        let redactedLines = 0;
+        let totalRedactions = 0;
         for (const stream of result) {
             const labels = stream?.stream && typeof stream.stream === 'object' ? stream.stream : {};
             const values = Array.isArray(stream?.values) ? stream.values : [];
@@ -760,17 +875,27 @@ export class LogsSlashCommand implements ISlashCommand {
                     continue;
                 }
 
+                const redacted = redactLogMessage(message, redaction || { enabled: true, replacement: '[REDACTED]' });
+                if (redacted.redacted) {
+                    redactedLines += 1;
+                    totalRedactions += redacted.redactionCount;
+                }
+
                 entries.push({
                     level,
-                    signal: this.extractSignalText(message),
-                    preview: this.extractPreviewText(message),
-                    lineText: this.extractSampleLineText(message),
+                    signal: this.extractSignalText(redacted.message),
+                    preview: this.extractPreviewText(redacted.message),
+                    lineText: this.extractSampleLineText(redacted.message),
                     timestamp,
                 });
             }
         }
 
-        return entries;
+        return {
+            entries,
+            redactedLines,
+            totalRedactions,
+        };
     }
 
     private parseLokiTimestamp(value: unknown): string | undefined {
@@ -1243,5 +1368,32 @@ export class LogsSlashCommand implements ISlashCommand {
         }
 
         return Math.min(max, Math.max(min, Math.floor(parsed)));
+    }
+
+    private readBoolean(value: unknown, fallback: boolean): boolean {
+        if (typeof value === 'boolean') {
+            return value;
+        }
+
+        if (typeof value === 'string') {
+            const normalized = value.trim().toLowerCase();
+            if (normalized === 'true') {
+                return true;
+            }
+            if (normalized === 'false') {
+                return false;
+            }
+        }
+
+        return fallback;
+    }
+
+    private readReplacement(value: unknown, fallback: string): string {
+        if (typeof value !== 'string') {
+            return fallback;
+        }
+
+        const trimmed = value.trim();
+        return trimmed || fallback;
     }
 }

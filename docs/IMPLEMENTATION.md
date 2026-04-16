@@ -53,6 +53,7 @@ This file documents the current scaffold and implemented backend behavior.
     - copy/share chat output up to 40 lines
     - persisted sample snapshot storage up to 80 lines (used by slash-card actions)
   - Includes numeric severity fallback mapping for common JSON numeric levels.
+  - Mints a short-lived signed permission proof for slash-card follow-up actions in Loki mode so copy/share stays available in `strict` and `fallback`.
   - Private slash card includes in-chat action buttons:
     - `Show copy-ready sample` -> private copy-ready evidence block
     - `Share sample` -> posts sampled evidence in-room/in-thread with audit entry
@@ -66,6 +67,7 @@ This file documents the current scaffold and implemented backend behavior.
 - `src/commands/slashCardActionHandler.ts`
   - Handles UIKit block-action callbacks for slash-card buttons.
   - Re-validates role authorization at click time.
+  - Verifies a short-lived signed permission proof for slash-card follow-up actions when workspace permission mode is `strict` or `fallback`.
   - Resolves user/room context server-side for safer cross-client behavior.
   - Resolves snapshot-backed sample payloads per actor for reliable copy/share actions.
   - Emits private copy response and audited in-room share action with explicit sampled-line count metadata.

@@ -73,6 +73,7 @@ Sanitized screenshots for public showcase live under `evidence/screenshots/publi
 
 ### Prerequisites
 
+- Node.js 22.16.0 (`.nvmrc` / `.node-version` target for this repo)
 - Bun installed (`bun --version`)
 - Rocket.Chat workspace where you can install private apps
 - For Loki mode: Loki query endpoint reachable from Rocket.Chat runtime

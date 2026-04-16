@@ -46,6 +46,7 @@ If this is your first use in a workspace:
 5. Click `Show copy-ready sample` for a private evidence block.
 6. Click `Share sample` when you want room/thread-visible evidence for team triage.
 7. Click **Open Logs Viewer** for deeper filtering, saved views, and audit review.
+8. If a slash-card action later says it is no longer authorized, rerun `/logs` to mint a fresh private card.
 
 ## 2.1 RBAC mode recommendation
 
@@ -98,6 +99,8 @@ Use slash command:
     - choose target room by room ID or room name
     - optionally provide a thread ID in that target room
     - submit and post sampled lines with audit entry
+  - In `strict` and `fallback` permission modes, slash-card actions stay enabled and carry a short-lived signed permission proof minted when `/logs` runs.
+    - If the proof expires, the card is stale, or the workspace permission mode changes, rerun `/logs` and use the fresh card.
     - if thread publish fails, app falls back to room timeline
 
 ## 3.1 Fast-entry behavior (intentional)
@@ -282,6 +285,8 @@ The UI enforces basic client validation. Backend still enforces authoritative li
 - Confirm the app is enabled and `/logs` opens the private contextual bar.
 - Re-run `/logs` once to refresh interaction payload context, then retry buttons.
 - If you clicked an old slash card after long delay/restart, snapshot context may expire; rerun `/logs`.
+- In `strict` or `fallback` mode, slash-card actions also require a fresh signed authorization proof from the current `/logs` run.
+  - If the action says it is no longer authorized, rerun `/logs` and retry from the new private card.
 - Check Rocket.Chat app logs around click time for block-action handling entries (`executeBlockActionHandler` path).
 - If app logs show `error-message-size-exceeded`, upgrade to a build with chat-size-aware copy/share truncation and retry.
 - If still failing, collect:

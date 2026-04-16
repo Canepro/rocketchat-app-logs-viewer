@@ -4,7 +4,9 @@ import { UIKitSurfaceType } from '@rocket.chat/apps-engine/definition/uikit';
 import { IUser } from '@rocket.chat/apps-engine/definition/users';
 
 import { SETTINGS } from '../constants';
+import { parseWorkspacePermissionMode } from '../security/accessControl';
 import { appendAuditEntry, hasAnyAllowedRole, parseAllowedRoles } from '../security/querySecurity';
+import { verifySlashPermissionProof } from '../security/slashPermissionProof';
 import {
     decodeSlashCardActionPayload,
     encodeSlashCardActionPayload,
@@ -94,13 +96,15 @@ export const handleSlashCardBlockAction = async (
     const roomContext = await resolveRoomContext(read, interaction.room, resolvedPayload.roomId);
 
     const settingsReader = read.getEnvironmentReader().getSettings();
-    const [allowedRolesRaw, retentionDaysRaw, maxEntriesRaw, messageMaxAllowedRaw] = await Promise.all([
+    const [allowedRolesRaw, workspacePermissionModeRaw, retentionDaysRaw, maxEntriesRaw, messageMaxAllowedRaw] = await Promise.all([
         settingsReader.getValueById(SETTINGS.ALLOWED_ROLES),
+        settingsReader.getValueById(SETTINGS.WORKSPACE_PERMISSION_MODE),
         settingsReader.getValueById(SETTINGS.AUDIT_RETENTION_DAYS),
         settingsReader.getValueById(SETTINGS.AUDIT_MAX_ENTRIES),
         safeReadSettingById(settingsReader, 'Message_MaxAllowedSize'),
     ]);
     const allowedRoles = parseAllowedRoles(allowedRolesRaw);
+    const workspacePermissionMode = parseWorkspacePermissionMode(workspacePermissionModeRaw);
     const auditRetentionDays = readNumber(retentionDaysRaw, 7, 1, 90);
     const auditMaxEntries = readNumber(maxEntriesRaw, 2000, 100, 10000);
     const messageMaxAllowedSize = readNumber(
@@ -114,6 +118,43 @@ export const handleSlashCardBlockAction = async (
         PRIVATE_COPY_CHAR_BUDGET_MIN,
         Math.min(PRIVATE_COPY_CHAR_BUDGET_MAX, messageMaxAllowedSize * PRIVATE_COPY_CHAR_BUDGET_MULTIPLIER),
     );
+
+    if (workspacePermissionMode !== 'off') {
+        const permissionProof = await verifySlashPermissionProof(read, {
+            actorUserId: actor.id,
+            proof: resolvedPayload.authorization,
+            currentPermissionMode: workspacePermissionMode,
+        });
+        if (!permissionProof.allowed) {
+            if (interaction.actionId === SLASH_CARD_ACTION.SHARE_SAMPLE || interaction.actionId === SLASH_CARD_ACTION.SHARE_ELSEWHERE) {
+                await appendAuditEntry(
+                    read,
+                    persistence,
+                    {
+                        action: interaction.actionId === SLASH_CARD_ACTION.SHARE_ELSEWHERE ? 'share_elsewhere_denied' : 'share_denied',
+                        userId: actor.id,
+                        outcome: 'denied',
+                        reason: 'permission_proof_invalid',
+                        scope: {
+                            source: 'slash_card',
+                            workspacePermissionMode,
+                            permissionProofReason: permissionProof.reason || null,
+                            roomId: resolvedPayload.roomId,
+                            threadId: resolvedPayload.threadId || null,
+                        },
+                    },
+                    auditRetentionDays,
+                    auditMaxEntries,
+                );
+            }
+
+            await notifyUserOnly(actor, roomContext, appUser, modify, [
+                'This `/logs` action is no longer authorized.',
+                'Run `/logs` again to refresh the private triage card.',
+            ]);
+            return true;
+        }
+    }
 
     if (!hasAnyAllowedRole(actor.roles, allowedRoles)) {
         // Re-check authorization at click time so role changes are honored immediately.
@@ -207,13 +248,15 @@ export const handleSlashCardViewSubmit = async (
 
     const actor = await read.getUserReader().getById(interaction.user.id) || interaction.user;
     const settingsReader = read.getEnvironmentReader().getSettings();
-    const [allowedRolesRaw, retentionDaysRaw, maxEntriesRaw, messageMaxAllowedRaw] = await Promise.all([
+    const [allowedRolesRaw, workspacePermissionModeRaw, retentionDaysRaw, maxEntriesRaw, messageMaxAllowedRaw] = await Promise.all([
         settingsReader.getValueById(SETTINGS.ALLOWED_ROLES),
+        settingsReader.getValueById(SETTINGS.WORKSPACE_PERMISSION_MODE),
         settingsReader.getValueById(SETTINGS.AUDIT_RETENTION_DAYS),
         settingsReader.getValueById(SETTINGS.AUDIT_MAX_ENTRIES),
         safeReadSettingById(settingsReader, 'Message_MaxAllowedSize'),
     ]);
     const allowedRoles = parseAllowedRoles(allowedRolesRaw);
+    const workspacePermissionMode = parseWorkspacePermissionMode(workspacePermissionModeRaw);
     const auditRetentionDays = readNumber(retentionDaysRaw, 7, 1, 90);
     const auditMaxEntries = readNumber(maxEntriesRaw, 2000, 100, 10000);
     const messageMaxAllowedSize = readNumber(
@@ -276,6 +319,42 @@ export const handleSlashCardViewSubmit = async (
             'Run `/logs` again to refresh the quick triage snapshot.',
         ]);
         return true;
+    }
+
+    if (workspacePermissionMode !== 'off') {
+        const permissionProof = await verifySlashPermissionProof(read, {
+            actorUserId: actor.id,
+            proof: resolvedPayload.authorization,
+            currentPermissionMode: workspacePermissionMode,
+        });
+        if (!permissionProof.allowed) {
+            await appendAuditEntry(
+                read,
+                persistence,
+                {
+                    action: 'share_elsewhere_denied',
+                    userId: actor.id,
+                    outcome: 'denied',
+                    reason: 'permission_proof_invalid',
+                    scope: {
+                        source: 'slash_card',
+                        workspacePermissionMode,
+                        permissionProofReason: permissionProof.reason || null,
+                        roomId: resolvedPayload.roomId,
+                        threadId: resolvedPayload.threadId || null,
+                        targetRoomInput: targetRoomInput || null,
+                        targetThreadId: targetThreadId || null,
+                    },
+                },
+                auditRetentionDays,
+                auditMaxEntries,
+            );
+            await notifyUserOnly(actor, interaction.room, appUser, modify, [
+                'This `/logs` action is no longer authorized.',
+                'Run `/logs` again to refresh the private triage card.',
+            ]);
+            return true;
+        }
     }
 
     if (!targetRoomInput) {

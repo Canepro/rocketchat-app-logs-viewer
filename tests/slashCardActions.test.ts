@@ -21,6 +21,13 @@ describe('slashCardActions helpers', () => {
             preset: 'none',
             snapshotId: 'snap_abc',
             sampleTotalCount: 12,
+            authorization: {
+                ownerUserId: 'u1',
+                permissionMode: 'strict',
+                issuedAt: '2026-02-25T10:00:00.000Z',
+                expiresAt: '2026-02-25T10:05:00.000Z',
+                signature: 'abc123',
+            },
             sampleOutput: [
                 { level: 'error', text: '2026-02-25T10:00:00.000Z Connection ended' },
             ],
@@ -34,6 +41,8 @@ describe('slashCardActions helpers', () => {
         expect(decoded?.sampleOutput.length).toBe(1);
         expect(decoded?.snapshotId).toBe('snap_abc');
         expect(decoded?.sampleTotalCount).toBe(12);
+        expect(decoded?.authorization?.ownerUserId).toBe('u1');
+        expect(decoded?.authorization?.permissionMode).toBe('strict');
         expect(formatSampleLines(decoded!)[0]).toContain('[error]');
     });
 

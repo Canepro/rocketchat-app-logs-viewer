@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 
 import { handleSlashCardBlockAction, handleSlashCardViewSubmit } from '../src/commands/slashCardActionHandler';
 import { encodeSlashCardActionPayload, SLASH_CARD_ACTION, SlashCardActionPayload } from '../src/commands/slashCardActions';
+import { createSlashPermissionProof } from '../src/security/slashPermissionProof';
 
 type StubMessageState = {
     text: string;
@@ -106,17 +107,26 @@ const payload: SlashCardActionPayload = {
     ],
 };
 
+const withAuthorization = (
+    authorization: SlashCardActionPayload['authorization'],
+): SlashCardActionPayload => ({
+    ...payload,
+    authorization,
+});
+
 const createRead = (
     allowedRoles: string,
     actorRoles: Array<string> = ['admin'],
     options?: {
         actorId?: string;
         settingsById?: Record<string, unknown>;
+        workspacePermissionMode?: 'off' | 'fallback' | 'strict';
         userRoomIds?: Array<string>;
         roomsById?: Record<string, any>;
         threadRoomById?: Record<string, string>;
         slashSnapshotStoreRecord?: unknown;
         shareElsewhereStoreRecord?: unknown;
+        permissionProofSecretRecord?: unknown;
     },
 ): any => ({
     getUserReader: () => ({
@@ -146,6 +156,7 @@ const createRead = (
             getValueById: async (id: string) => {
                 const values: Record<string, unknown> = {
                     allowed_roles: allowedRoles,
+                    workspace_permission_mode: options?.workspacePermissionMode || 'off',
                     audit_retention_days: 7,
                     audit_max_entries: 2000,
                     Message_MaxAllowedSize: 5000,
@@ -157,18 +168,64 @@ const createRead = (
     }),
     getPersistenceReader: () => ({
         readByAssociation: async (association: any) => {
-            const id = typeof association?.id === 'string' ? association.id : '';
+            const id = typeof association?.id === 'string'
+                ? association.id
+                : (typeof association?.getID === 'function' ? association.getID() : '');
             if (id.includes(`slash-card-samples:user:${options?.actorId || 'u1'}`) && options?.slashSnapshotStoreRecord) {
                 return [options.slashSnapshotStoreRecord];
             }
             if (id.includes(`slash-card-share-elsewhere:user:${options?.actorId || 'u1'}`) && options?.shareElsewhereStoreRecord) {
                 return [options.shareElsewhereStoreRecord];
             }
+            if (id.includes('slash-permission-proof-secret') && options?.permissionProofSecretRecord) {
+                return [options.permissionProofSecretRecord];
+            }
 
             return [];
         },
     }),
 });
+
+const mintPermissionProof = async (input?: {
+    ownerUserId?: string;
+    permissionMode?: 'off' | 'fallback' | 'strict';
+    now?: Date;
+}): Promise<{ proof: NonNullable<SlashCardActionPayload['authorization']>; permissionProofSecretRecord: unknown }> => {
+    let permissionProofSecretRecord: unknown;
+    const read: any = {
+        getPersistenceReader: () => ({
+            readByAssociation: async (association: any) => {
+                const id = typeof association?.id === 'string'
+                    ? association.id
+                    : (typeof association?.getID === 'function' ? association.getID() : '');
+                if (id.includes('slash-permission-proof-secret') && permissionProofSecretRecord) {
+                    return [permissionProofSecretRecord];
+                }
+
+                return [];
+            },
+        }),
+    };
+    const persistence: any = {
+        updateByAssociation: async (_association: unknown, record: unknown) => {
+            permissionProofSecretRecord = record;
+        },
+    };
+
+    const proof = await createSlashPermissionProof(read, persistence, {
+        ownerUserId: input?.ownerUserId || 'u1',
+        permissionMode: input?.permissionMode || 'strict',
+        now: input?.now,
+    });
+    if (!proof) {
+        throw new Error('Expected permission proof to be created for test setup.');
+    }
+
+    return {
+        proof,
+        permissionProofSecretRecord,
+    };
+};
 
 describe('slashCardActionHandler', () => {
     it('returns private copy-ready sample for copy action', async () => {
@@ -832,6 +889,97 @@ describe('slashCardActionHandler', () => {
         expect((notifications[0] as any).text).toContain('Incidents');
     });
 
+    it('allows share elsewhere modal submit in strict mode with fresh permission proof', async () => {
+        const notifications: Array<any> = [];
+        const finishes: Array<any> = [];
+        const auditWrites: Array<any> = [];
+        const requestId = 'req_submit_strict_ok';
+        const now = new Date();
+        const nowIso = now.toISOString();
+        const targetRoom = {
+            id: 'room-2',
+            displayName: 'Incidents',
+            slugifiedName: 'incidents',
+        } as any;
+        const { proof, permissionProofSecretRecord } = await mintPermissionProof({
+            ownerUserId: 'u1',
+            permissionMode: 'strict',
+            now,
+        });
+
+        const modify: any = {
+            getCreator: () => ({
+                startMessage: () => createMessageBuilder(),
+                finish: async (builder: any) => {
+                    finishes.push(builder.getMessage());
+                },
+            }),
+            getNotifier: () => ({
+                notifyUser: async (_user: unknown, message: unknown) => notifications.push(message),
+            }),
+        };
+
+        const handled = await handleSlashCardViewSubmit(
+            'app-id',
+            {
+                appId: 'app-id',
+                triggerId: 't-submit',
+                user: { id: 'u1', roles: ['admin'] },
+                room,
+                view: {
+                    id: `logs_slash_share_elsewhere_modal:${requestId}`,
+                    state: {
+                        values: {
+                            share_elsewhere_target_room: {
+                                share_elsewhere_target_room_input: {
+                                    type: 'plain_text_input',
+                                    value: 'Incidents',
+                                },
+                            },
+                            share_elsewhere_target_thread: {
+                                share_elsewhere_target_thread_input: {
+                                    type: 'plain_text_input',
+                                    value: '',
+                                },
+                            },
+                        },
+                    },
+                } as any,
+            } as any,
+            createRead('admin', ['admin'], {
+                actorId: 'u1',
+                workspacePermissionMode: 'strict',
+                permissionProofSecretRecord,
+                userRoomIds: ['room-1', 'room-2'],
+                roomsById: {
+                    'room-1': room,
+                    'room-2': targetRoom,
+                },
+                shareElsewhereStoreRecord: {
+                    updatedAt: nowIso,
+                    entries: [
+                        {
+                            id: requestId,
+                            createdAt: nowIso,
+                            actionPayload: encodeSlashCardActionPayload(withAuthorization(proof)),
+                        },
+                    ],
+                },
+            }),
+            modify,
+            {
+                updateByAssociation: async (...args: Array<unknown>) => auditWrites.push(args),
+            } as any,
+        );
+
+        expect(handled).toBe(true);
+        expect(finishes.length).toBe(1);
+        expect(finishes[0].room?.id).toBe('room-2');
+        expect(finishes[0].text).toContain('*Logs sample shared from `/logs`*');
+        expect(auditWrites.length).toBe(2);
+        expect((notifications[0] as any).text).toContain('Shared 2 of 2 sampled line(s)');
+    });
+
     it('denies share elsewhere modal submit when target room is not accessible', async () => {
         const notifications: Array<any> = [];
         const finishes: Array<any> = [];
@@ -1116,5 +1264,96 @@ describe('slashCardActionHandler', () => {
         expect(handled).toBe(true);
         expect(notifications.length).toBe(1);
         expect((notifications[0] as any).text).toContain('Sample details are no longer available');
+    });
+
+    it('allows slash-card share actions in strict mode with fresh permission proof', async () => {
+        const notifications: Array<any> = [];
+        const finishes: Array<any> = [];
+        const auditWrites: Array<any> = [];
+        const { proof, permissionProofSecretRecord } = await mintPermissionProof({
+            ownerUserId: 'u1',
+            permissionMode: 'strict',
+        });
+        const modify: any = {
+            getCreator: () => ({
+                startMessage: () => createMessageBuilder(),
+                finish: async (builder: any) => {
+                    finishes.push(builder.getMessage());
+                },
+            }),
+            getNotifier: () => ({
+                notifyUser: async (_user: unknown, message: unknown) => notifications.push(message),
+            }),
+        };
+
+        const handled = await handleSlashCardBlockAction(
+            'app-id',
+            {
+                appId: 'app-id',
+                actionId: SLASH_CARD_ACTION.SHARE_SAMPLE,
+                value: encodeSlashCardActionPayload(withAuthorization(proof)),
+                room,
+                user: { id: 'u1', roles: ['admin'] },
+                triggerId: 't1',
+                blockId: 'b1',
+                container: { id: 'c1', type: 'contextual_bar' } as any,
+            } as any,
+            createRead('admin', ['admin'], {
+                workspacePermissionMode: 'strict',
+                permissionProofSecretRecord,
+            }),
+            modify,
+            {
+                updateByAssociation: async (...args: Array<unknown>) => auditWrites.push(args),
+            } as any,
+        );
+
+        expect(handled).toBe(true);
+        expect(finishes.length).toBe(1);
+        expect(notifications.length).toBe(1);
+        expect((notifications[0] as any).text).toContain('Shared 2 of 2 sampled line(s)');
+        expect(auditWrites.length).toBe(1);
+    });
+
+    it('denies slash-card share actions in strict mode when permission proof is missing', async () => {
+        const notifications: Array<any> = [];
+        const finishes: Array<any> = [];
+        const auditWrites: Array<any> = [];
+        const modify: any = {
+            getCreator: () => ({
+                startMessage: () => createMessageBuilder(),
+                finish: async (builder: any) => {
+                    finishes.push(builder.getMessage());
+                },
+            }),
+            getNotifier: () => ({
+                notifyUser: async (_user: unknown, message: unknown) => notifications.push(message),
+            }),
+        };
+
+        const handled = await handleSlashCardBlockAction(
+            'app-id',
+            {
+                appId: 'app-id',
+                actionId: SLASH_CARD_ACTION.SHARE_SAMPLE,
+                value: encodeSlashCardActionPayload(payload),
+                room,
+                user: { id: 'u1', roles: ['admin'] },
+                triggerId: 't1',
+                blockId: 'b1',
+                container: { id: 'c1', type: 'contextual_bar' } as any,
+            } as any,
+            createRead('admin', ['admin'], { workspacePermissionMode: 'strict' }),
+            modify,
+            {
+                updateByAssociation: async (...args: Array<unknown>) => auditWrites.push(args),
+            } as any,
+        );
+
+        expect(handled).toBe(true);
+        expect(finishes.length).toBe(0);
+        expect(notifications.length).toBe(1);
+        expect((notifications[0] as any).text).toContain('action is no longer authorized');
+        expect(auditWrites.length).toBe(1);
     });
 });

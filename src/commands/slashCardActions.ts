@@ -1,4 +1,5 @@
 export type QueryLevel = 'error' | 'warn' | 'info' | 'debug';
+export type WorkspacePermissionMode = 'off' | 'fallback' | 'strict';
 
 export const SLASH_CARD_ACTION = {
     COPY_SAMPLE: 'logs_slash_copy_sample',
@@ -24,6 +25,13 @@ export type SlashCardActionPayload = {
     preset: string;
     snapshotId?: string;
     sampleTotalCount?: number;
+    authorization?: {
+        ownerUserId: string;
+        permissionMode: WorkspacePermissionMode;
+        issuedAt: string;
+        expiresAt: string;
+        signature: string;
+    };
     sampleOutput: Array<SlashCardSampleLine>;
 };
 
@@ -34,6 +42,9 @@ const MAX_WINDOW_LABEL_LENGTH = 140;
 const MAX_FILTER_SUMMARY_LENGTH = 180;
 const MAX_PRESET_LENGTH = 40;
 const MAX_SNAPSHOT_ID_LENGTH = 80;
+const MAX_OWNER_USER_ID_LENGTH = 128;
+const MAX_SIGNATURE_LENGTH = 128;
+const MAX_TIMESTAMP_LENGTH = 40;
 const MAX_SAMPLE_LINES = 50;
 const MAX_SAMPLE_TEXT_LENGTH = 220;
 const LEVELS = new Set<QueryLevel | 'unknown'>(['error', 'warn', 'info', 'debug', 'unknown']);
@@ -90,6 +101,7 @@ const sanitizePayload = (raw: Partial<SlashCardActionPayload>): SlashCardActionP
     const preset = sanitizeString(raw.preset, MAX_PRESET_LENGTH) || 'none';
     const snapshotId = sanitizeString(raw.snapshotId, MAX_SNAPSHOT_ID_LENGTH) || undefined;
     const sampleTotalCount = sanitizeSampleTotalCount(raw.sampleTotalCount);
+    const authorization = sanitizeAuthorization(raw.authorization);
 
     if (!roomId || !roomName || !sourceMode || !windowLabel || !filterSummary) {
         return undefined;
@@ -109,7 +121,35 @@ const sanitizePayload = (raw: Partial<SlashCardActionPayload>): SlashCardActionP
         preset,
         snapshotId,
         sampleTotalCount,
+        authorization,
         sampleOutput,
+    };
+};
+
+const sanitizeAuthorization = (raw: unknown): SlashCardActionPayload['authorization'] | undefined => {
+    if (!raw || typeof raw !== 'object') {
+        return undefined;
+    }
+
+    const candidate = raw as Partial<NonNullable<SlashCardActionPayload['authorization']>>;
+    const ownerUserId = sanitizeString(candidate.ownerUserId, MAX_OWNER_USER_ID_LENGTH);
+    const permissionMode = candidate.permissionMode === 'off' || candidate.permissionMode === 'fallback' || candidate.permissionMode === 'strict'
+        ? candidate.permissionMode
+        : undefined;
+    const issuedAt = sanitizeString(candidate.issuedAt, MAX_TIMESTAMP_LENGTH);
+    const expiresAt = sanitizeString(candidate.expiresAt, MAX_TIMESTAMP_LENGTH);
+    const signature = sanitizeString(candidate.signature, MAX_SIGNATURE_LENGTH);
+
+    if (!ownerUserId || !permissionMode || !issuedAt || !expiresAt || !signature) {
+        return undefined;
+    }
+
+    return {
+        ownerUserId,
+        permissionMode,
+        issuedAt,
+        expiresAt,
+        signature,
     };
 };
 

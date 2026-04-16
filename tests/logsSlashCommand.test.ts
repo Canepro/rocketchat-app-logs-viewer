@@ -43,4 +43,47 @@ describe('LogsSlashCommand argument parsing', () => {
         expect(command.detectLevel('{"level":35,"msg":"request log"}', {})).toBe('info');
         expect(command.detectLevel('{"level":50,"msg":"fatal-ish"}', {})).toBe('error');
     });
+
+    it('uses bearer auth when only a Loki token is configured', () => {
+        expect(command.buildLokiAuthHeader('', 'token-only')).toEqual({
+            Authorization: 'Bearer token-only',
+        });
+        expect(command.buildLokiAuthHeader('user', 'secret')).toMatchObject({
+            Authorization: expect.stringContaining('Basic '),
+        });
+    });
+
+    it('skips quick triage when requested window exceeds the configured max', async () => {
+        const http = {
+            get: async () => {
+                throw new Error('should not query Loki for invalid quick triage ranges');
+            },
+        };
+
+        const summary = await command.buildQuickTriageSummary({
+            http,
+            lokiBaseUrlRaw: 'https://observability.example.com',
+            lokiUsernameRaw: '',
+            lokiTokenRaw: '',
+            requiredLabelSelectorRaw: '{namespace="rocketchat"}',
+            parsed: {
+                start: '2026-02-01T00:00:00.000Z',
+                end: '2026-02-03T00:00:00.000Z',
+                autorun: true,
+                hasExplicitFilters: true,
+                warnings: [],
+            },
+            defaultTimeRange: '15m',
+            maxLinesPerQuery: 2000,
+            maxTimeWindowHours: 24,
+            queryTimeoutMs: 30000,
+            redaction: {
+                enabled: true,
+                replacement: '[REDACTED]',
+            },
+        });
+
+        expect(summary.note).toContain('requested filters are invalid');
+        expect(summary.auditReason).toBe('invalid_query');
+    });
 });

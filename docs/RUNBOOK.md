@@ -126,6 +126,7 @@ Source mode notes:
 1. Ensure intended operator roles include `view-logs`.
 2. Ensure non-operator roles do not include `view-logs`.
 3. Validate command visibility boundaries with one allowed and one denied test user.
+4. In `strict` and `fallback`, remember slash-card follow-up actions use a short-lived per-user proof minted when `/logs` runs.
 
 ## 4. Post-deploy validation
 
@@ -286,12 +287,14 @@ Checks:
 4. Confirm room context exists and user is member of target room for share path.
 5. Inspect app logs for block-action processing around click timestamp (`executeBlockActionHandler` path).
 6. If action says snapshot is unavailable, the slash card is stale; run `/logs` again to create a fresh per-user sample snapshot.
+7. If action says it is no longer authorized, rerun `/logs` to mint a fresh signed permission proof for that user and room context.
 
 Notes:
 
 - `Show copy-ready sample` is always private.
 - `Share sample` is room/thread-visible and audited.
 - Clipboard writes are not possible from Rocket.Chat Apps block actions; `Show copy-ready sample` returns a private copy-ready block.
+- In `strict` and `fallback`, slash-card actions remain enabled; they are bound to the issuing user by a short-lived signed proof and still re-check `allowed_roles` at click time.
 - If logs show `error-message-size-exceeded`, sample output exceeded workspace message-size limits; use the latest build with automatic chat-size truncation.
 
 ## 7.6 Share elsewhere failures
